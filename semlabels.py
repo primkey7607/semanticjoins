@@ -5,6 +5,7 @@ from ast import literal_eval
 import sys
 import pickle
 import os
+import pandas as pd
 
 """
 Purpose: Semantically Label all the columns in the data lake and
@@ -18,6 +19,8 @@ def parse_dt(b_ent):
         return ''
 
 def convert_val(b_ent):
+    if b_ent['type'] == 'literal' and 'xml:lang' in b_ent:
+        return None
     dt = b_ent['datatype']
     if 'integer' in dt.lower():
         return int(b_ent['value'])
@@ -149,9 +152,92 @@ def create_fcm():
         with open('max_numfts.txt', 'w+') as fh:
             print(mx_cats, file=fh)
 
+def allprop_query(cp_pairs):
+    subs = ''
+    body = ''
+    outdct = {}
+    
+    #first, make a dictionary from unique classes to lists of their properties
+    cl2props = {}
+    sub2cl = {}
+    pname2prop = {}
+    
+    for cp in cp_pairs:
+        cl = tuple(cp[0])
+        prop = cp[1]
+        if cl in cl2props:
+            cl2props[cl].append(prop)
+        else:
+            cl2props[cl] = [prop]
+    
+    p_ind = 0
+    for j,cl in enumerate(cl2props):
+        sname = '?subject' + str(j)
+        sub2cl[sname[1:]] = cl
+        subs += sname + ', '
+        
+        for cln in cl:
+            body += sname + ' a ' + cln + ' . '
+        
+        for i,p in enumerate(cl2props[cl]):
+            pname = '?prop' + str(p_ind)
+            p_ind += 1
+            if j == len(cl2props) - 1 and i == len(cl2props[cl]) - 1:
+                subs += pname + ' '
+            else:
+                subs += pname + ', '
+            pname2prop[pname[1:]] = p
+            body += sname + ' ' + p + ' ' + pname + ' . '
+        
+    
+    query = 'select ' + subs + ' { ' + body + ' } LIMIT 100'
+    print(query)
+    sparql = SPARQLWrapper("https://dbpedia.org/sparql/", agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11")
+    sparql.setQuery(query)
+    sparql.setReturnFormat(JSON)
+    results = sparql.query().convert()
+    
+    vnames = results['head']['vars']
+    
+    for b in results['results']['bindings']:
+        for v in vnames:
+            if 'subject' in v:
+                clname = '_'.join(sub2cl[v])
+                if clname in outdct:
+                    outdct[clname].append(b[v]['value'])
+                else:
+                    outdct[clname] = [b[v]['value']]
+            else:
+                prop = pname2prop[v]
+                bval = convert_val(b[v])
+                if prop in outdct:
+                    outdct[prop].append(bval)
+                else:
+                    outdct[prop] = [bval]
+    
+    return outdct
+                
+                
+                
+        
+        
+    
+    
+            
+        
+        
+
+#for testing purposes, construct a table from KG class instances
+def tbls_from_kg(cp_pairs, outname):
+    dfdct = allprop_query(cp_pairs)
+    
+    newdf = pd.DataFrame(dfdct)
+    newdf.to_csv(outname)
+        
 if __name__ == "__main__":
     init_pairs = [(['dbo:BusCompany'], '<http://dbpedia.org/property/annualRidership>'), 
                   (['dbo:BusCompany'], '<http://dbpedia.org/ontology/numberOfLines>')]
-    construct_numfts(init_pairs)
-    create_fcm()
+    #construct_numfts(init_pairs)
+    #create_fcm()
+    tbls_from_kg(init_pairs, 'busridertbl.csv')
     
