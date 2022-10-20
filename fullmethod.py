@@ -20,6 +20,10 @@ def check_models(tp, models, hierarchy):
         if new_tp in models:
             return new_tp
     
+    #but it's also possible to have the last element in the hierarchy,
+    #in which case, we should use the one immediately before.
+    return hierarchy[tp_ind - 1]
+    
 
 def sem_classify(fname, is_test=False):
     #we organize the models by a hierarchy, so that if numeric types don't match
