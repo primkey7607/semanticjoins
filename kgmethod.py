@@ -5,7 +5,7 @@ import copy
 """
 Purpose: Index the KG method query results. The actual method has to issue SPARQL queries,
 which can be quite expensive unless you dump the data onto disk.
-So in this file, we index the KG method results. We use them when
+So in this file, we will want to index the KG method results. We use them when
 we run the full method.
 
  Design: Given the input table and its semantic labels 
@@ -193,7 +193,7 @@ def verify_rels(all_rels, kg_insts, existing_rels):
 #and the second is the class/property pair,
 #return the proportion of tuples in the join that we find are related through the KG.
 def kgscore(df1, df2, jk1, jk2, cp1 : dict, cp2 : dict):
-    joindf = df1.merge(left_on=jk1, right_on=jk2)
+    joindf = df1.merge(df2, left_on=jk1, right_on=jk2)
     found_rels = {}
     #first, find the groups of class/property pairs with the same class,
     #for each inputted table

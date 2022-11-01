@@ -109,7 +109,7 @@ def get_fcnames(hashes, mhdctname):
     
 #given a filename and a lsh index, return a list of all the joinable tables
 #to the input file
-def query_lsh(infname, mhdctname, lsh_ind):
+def query_lsh(infname, mhdctname, lsh_ind, outname):
     all_joins = {}
     intbl = basic_extract(infname)
     with open(mhdctname, 'r') as fh:
@@ -131,7 +131,7 @@ def query_lsh(infname, mhdctname, lsh_ind):
         fc_lst = get_fcnames(hashes, mhdct)
         all_joins[cmh_name] = fc_lst
     
-    with open('all_lake_joins.json', 'w+') as fh:
+    with open(outname, 'w+') as fh:
         print(all_joins, file=fh)
         
 
@@ -143,6 +143,6 @@ if __name__ == "__main__":
     store_mhs(flst, 'lake_mhs')
     build_lsh('lake_mhs', 'lake_lshind.pkl', thresh=0.1)
     
-    query_lsh(inpfile, 'mh_dict.json', 'lake_lshind.pkl')
+    query_lsh(inpfile, 'mh_dict.json', 'lake_lshind.pkl', 'all_lake_joins.json')
     
 

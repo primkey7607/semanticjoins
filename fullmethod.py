@@ -4,6 +4,11 @@ import pandas as pd
 from semhelper import check_type, get_fts_by_tp
 from ast import literal_eval
 import numpy as np
+from nonkgmethod import find_joinable
+import math
+import copy
+from kgmethod import kgscore
+from nonkgmethod import nonkgscore
 
 """
 Purpose: Given an input dataset and a data lake, run the full pipeline.
@@ -86,6 +91,81 @@ def sem_classify(fname, is_test=False):
         cp_labels[c] = pwnames[:3]
     
     return cp_labels
+
+def get_entropy(score_lst : list):
+    total = 0.0
+    score_sum = sum(score_lst)
+    
+    for s in score_lst:
+        prob = s / score_sum
+        logprob = math.log(prob, 2)
+        total += prob * logprob
+    
+    total = -total
+    
+    return total
+
+def insert_el(lst : list, el, elname, topk):
+    #the easiest, and worst way to do this is to
+    #just insert the element, sort the list again,
+    #take the top k, and return.
+    res = lst + [(elname[0], elname[1], el)]
+    return sorted(res, key=lambda x: x[2], reverse=True)[:topk]
+            
+            
+        
+
+def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3):
+    topk_kg = []
+    topk_nonkg = []
+    #first, find all joinable tables to the input table
+    lake_joins = find_joinable(infile, lsh_ind, lake_dir)
+    #first, get the classification for the infile
+    i_cpl = sem_classify(infile, is_test=has_gt)
+    #sample of cplabels--
+    #{'<http://dbpedia.org/property/annualRidership>': [(1.0, "(['dbo:BusCompany'], '<http://dbpedia.org/ontology/numberOfLines>')")], '<http://dbpedia.org/ontology/numberOfLines>': [(1.0, "(['dbo:BusCompany'], '<http://dbpedia.org/ontology/numberOfLines>')")]}
+    #now, for each table in the data lake
+    #first, get the list of class/property label distributions
+    in_entlst = []
+    for cname in i_cpl:
+        in_labels = i_cpl[cname]
+        in_scores = [e[0] for e in in_labels]
+        in_entlst.append(get_entropy(in_scores))
+    
+    for intup in lake_joins:
+        for otup in lake_joins[intup]:
+            o_cpl = sem_classify(otup[0], is_test=has_gt)
+            entlst = []
+            for cname in o_cpl:
+                o_labels = o_cpl[cname]
+                o_scores = [e[0] for e in o_labels]
+                entlst.append(get_entropy(o_scores))
+    
+            entlst += in_entlst
+            avg_ent = sum(entlst) / len(entlst)
+            if avg_ent < ent_thresh:
+                #then, get the kgscore
+                indf = pd.read_csv(infile)
+                outdf = pd.read_csv(otup[0])
+                injk = intup[1]
+                outjk = otup[1]
+                
+                kgsc, kgrels = kgscore(indf, outdf, injk, outjk, i_cpl, o_cpl)
+                #sequential insertion
+                topk_kg = insert_el(topk_kg, kgsc, otup, topk)
+            else:
+                injk = intup[1]
+                outjk = otup[1]
+                nonkgsc = nonkgscore(infile, otup[0], injk, outjk, lake_dir, lsh_ind, 'all_lake_fts.json')
+                topk_nonkg = insert_el(topk_nonkg, nonkgsc, otup, topk)
+    
+    with open('fullresults_kg.txt', 'w+') as fh:
+        print(topk_kg, file=fh)
+    
+    with open('fullresults_nonkg.txt', 'w+') as fh:
+        print(topk_nonkg, file=fh)
+    
+    
 
 if __name__ == "__main__":
     #test classification using models on properties we already have
