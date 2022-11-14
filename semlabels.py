@@ -18,14 +18,20 @@ def parse_dt(b_ent):
     else:
         return ''
 
-def convert_val(b_ent):
+def convert_val(b_ent, propname):
     if b_ent['type'] == 'literal' and 'xml:lang' in b_ent:
         return None
     dt = b_ent['datatype']
     if 'integer' in dt.lower():
         return int(b_ent['value'])
     
-    return float(b_ent['value'])
+    bval = float(b_ent['value'])
+    if 'percent' in propname and bval >= 1:
+        if bval >= 100.0:
+            return None
+        bval = bval / 100.0
+    
+    return bval
         
 
 def nums_query(cp):
@@ -41,9 +47,11 @@ def nums_query(cp):
     if os.sep in prop:
         last_name = prop.split(os.sep)[-1]
         qname += last_name
+    else:
+        qname += prop
     
     if os.path.exists('query_answers/' + qname + '.json'):
-        print("Reading from Existing")
+        print("Reading from Existing: {}".format('query_answers/' + qname + '.json'))
         with open('query_answers/' + qname + '.json', 'r') as fh:
             st = fh.read()
             results = literal_eval(st)
@@ -68,23 +76,73 @@ def nums_query(cp):
         cur_dt = parse_dt(b['val'])
         if cur_dt != valdt:
             continue
-        bval = convert_val(b['val'])
+        bval = convert_val(b['val'], prop)
+        if bval == None:
+            continue
+        
         val_lst.append(bval)
     
     
     return val_lst
+
+#Given the class property pair name,
+#query for KG class/property pair values
+#based on the conditional distributions we expect to appear
+#in the data lake (as opposed to the full distributions)
+#TODO: as future work, we'll want to make this more general.
+#but right now, we will just use the same values we sample to generate
+#KG joins in our data lake.
+def cond_adj(cp):
+    classes = cp[0]
+    prop = cp[1]
+    out_dist = []
+    
+    for f in os.listdir('demo_lake'):
+        fullf = os.path.join('demo_lake', f)
+        f_header = pd.read_csv(fullf, nrows=0)
+        if prop in f_header and len(set(f_header.columns.to_list()).intersection(set(classes))) > 0:
+            full_df = pd.read_csv(fullf, usecols=[prop])
+            #print("full_df: {}".format(full_df))
+            full_dist = full_df[prop].to_list()
+            out_dist += full_dist
+    
+    return out_dist
+                
+            
+            
+            
+            
+                
+            
         
+    
         
 
 #given a list of numeric knowledge graph class-property pairs,
 #where the class is a list of dbpedia class names,
 # and the property is the name of a dbpedia property of an entity of the class,
 #construct and return the numeric features for each of these pairs
-def construct_numfts(cp_pairs):
+#TODO: this function, and maybe create_fcm() as well, is very, very inefficient
+#and I can see that memory fluctuates a lot when we run them.
+#and it's not because our query results files are large.
+#We need to figure out exactly why--it would make life easier...
+#Key Assumption: the distributions of all concepts corresponding to columns in the data lake
+#and those of the input are independent. We need this assumption
+#for our semantic labeling method to work. Otherwise, the current method
+#samples the full population distribution, which may differ from the population
+#distribution conditioned on some feature we introduce through a join.
+#This would be a source of error in our semantic labeling.
+def construct_numfts(cp_pairs, cond_adjust=True):
     cp2fts = {}
     
     for cp in cp_pairs:
-        cp_vals = nums_query(cp)
+        if cond_adjust:
+            cp_vals = cond_adj(cp)
+            if cp_vals == []:
+                cp_vals = nums_query(cp)
+        else:
+            cp_vals = nums_query(cp)
+        
         num_tp = check_type(cp_vals)
         num_fts = get_fts_by_tp(cp_vals, num_tp)
         cp2fts[str(cp)] = num_fts
@@ -209,7 +267,7 @@ def allprop_query(cp_pairs):
                     outdct[clname] = [b[v]['value']]
             else:
                 prop = pname2prop[v]
-                bval = convert_val(b[v])
+                bval = convert_val(b[v], prop)
                 if prop in outdct:
                     outdct[prop].append(bval)
                 else:
@@ -311,14 +369,14 @@ def join_query(cp_pairs : list, jprops : dict, rels : list):
             
             elif 'jprop' in v:
                 jpname = jpname2prop[v]
-                bval = convert_val(b[v])
+                bval = convert_val(b[v], jpname)
                 if jpname in joindct:
                     joindct[jpname].append(bval)
                 else:
                     joindct[jpname] = [bval]
             elif 'prop' in v:
                 prop = pname2prop[v]
-                bval = convert_val(b[v])
+                bval = convert_val(b[v], prop)
                 if prop in outdct:
                     outdct[prop].append(bval)
                 else:
@@ -346,17 +404,26 @@ def joins_from_kg(cp_pairs, join_pairs, rels, outname, outjoin):
         
 if __name__ == "__main__":
     #we will first generate all the KG tables here
-    # bus_pairs = [(['dbo:BusCompany'], '<http://dbpedia.org/property/annualRidership>'), 
-    #               (['dbo:BusCompany'], '<http://dbpedia.org/ontology/numberOfLines>')]
-    # #construct_numfts(init_pairs)
-    # #create_fcm()
+    bus_pairs = [(['dbo:BusCompany'], '<http://dbpedia.org/property/annualRidership>'), 
+                  (['dbo:BusCompany'], '<http://dbpedia.org/ontology/numberOfLines>')]
+    # construct_numfts(bus_pairs)
+    # create_fcm()
     # #tbls_from_kg(bus_pairs, 'demo_lake/busridertbl.csv')
     
-    # bus_joins = [(['dbo:BusCompany'], 'dbo:regionServed')]
-    # bus_joinprops = {'dbo:regionServed' : ['<http://dbpedia.org/ontology/PopulatedPlace/areaTotal>',
-    #                    'dbo:percentageOfAreaWater'] }
+    bus_joins = [(['dbo:BusCompany'], 'dbo:regionServed')]
+    #TODO: dbo:percentageOfAreaWater has unreliable units--some entities have a number between 0 and 1, and
+    #others have a number between 1 and 100. For now, we'll "fix" our query answers to be between 0 and 1.
+    #However, a more reliable way to query the KG is to get the land area and water area, which have the same units,
+    #and compute the percentage water area ourselves.
+    bus_joinprops = {'dbo:regionServed' : ['<http://dbpedia.org/ontology/PopulatedPlace/areaTotal>',
+                       'dbo:percentageOfAreaWater'] }
+    bus_joinpairs = [([], s) for s in bus_joinprops['dbo:regionServed']]
+    # print("bus join pairs: {}".format(bus_joinpairs))
+    construct_numfts(bus_pairs + bus_joinpairs, cond_adjust=True)
+    create_fcm()
     
-    # joins_from_kg(bus_pairs, bus_joinprops, bus_joins, 'busridertbl.csv', 'busriderjoin.csv')
+    
+    #joins_from_kg(bus_pairs, bus_joinprops, bus_joins, 'busridertbl.csv', 'busriderjoin.csv')
     
     
     # soccer_pairs = [(['dbo:SoccerPlayer'], '<http://dbpedia.org/property/totalgoals>'), 
@@ -380,22 +447,10 @@ if __name__ == "__main__":
     # bank_joinprops = {'dbo:location' : ['<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>'] }
     # joins_from_kg(bank_pairs, bank_joinprops, bank_joins, 'banktbl.csv', 'bankjoin.csv')
     
-    pol_pairs = [(['dbo:Politician'], '<http://dbpedia.org/property/votes>')]
-    pol_joins = [(['dbo:Politician'], 'dbo:education')]
-    pol_joinprops = {'dbo:education' : ['dbo:endowment'] }
-    joins_from_kg(pol_pairs, pol_joinprops, pol_joins, 'politiciantbl.csv', 'politicianjoin.csv')
-    
-    
-    
-    
-    
-    #TODO: we also need to implement the ability to generate the joins of these tables,
-    #given relationships. Then, we can use these tables in the baseline.
-    # hockey_pairs = 
-    # tennis_pairs = 
-    # politician_pairs = 
-    # bank_pairs = 
-    # soccer_pairs = 
+    # pol_pairs = [(['dbo:Politician'], '<http://dbpedia.org/property/votes>')]
+    # pol_joins = [(['dbo:Politician'], 'dbo:education')]
+    # pol_joinprops = {'dbo:education' : ['dbo:endowment'] }
+    # joins_from_kg(pol_pairs, pol_joinprops, pol_joins, 'politiciantbl.csv', 'politicianjoin.csv')
     
     
     #construct_numfts(init_pairs)

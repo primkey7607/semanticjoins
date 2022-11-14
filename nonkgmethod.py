@@ -66,17 +66,20 @@ def parse_fcval(st, lake_dir):
 #and the name of the json file containing a dictionary with all joins
 #in the data lake,
 #find all joinable tables to the given one in the data lake
-def find_joinable(outname, ind_name, lake_dir):
+def find_joinable(outname, ind_name, lake_dir, is_gt=True):
     #query the minhash lsh index on the data lake
     #to get a dictionary whose keys are file/column names of outname
     #and whose values are lists of file/column pairs.
     prox_dct = {}
     if not os.path.exists(ind_name):
-        query_lsh(outname, 'mh_dict.json', 'lake_lshind.pkl', ind_name)
+        query_lsh(outname, 'mh_dict.json', 'lake_lshind.pkl', ind_name, is_gt=is_gt)
     
     with open(ind_name, 'r') as fh:
         st = fh.read()
         dct = literal_eval(st)
+    
+    if is_gt:
+        return dct
     
     for k in dct:
         outf, outc = parse_fckey(k)

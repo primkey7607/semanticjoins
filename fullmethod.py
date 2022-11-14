@@ -111,9 +111,6 @@ def insert_el(lst : list, el, elname, topk):
     #take the top k, and return.
     res = lst + [(elname[0], elname[1], el)]
     return sorted(res, key=lambda x: x[2], reverse=True)[:topk]
-            
-            
-        
 
 def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3):
     topk_kg = []
@@ -122,6 +119,7 @@ def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3):
     lake_joins = find_joinable(infile, lsh_ind, lake_dir)
     #first, get the classification for the infile
     i_cpl = sem_classify(infile, is_test=has_gt)
+    print("table class/prop pairs: {}, {}".format(infile, i_cpl))
     #sample of cplabels--
     #{'<http://dbpedia.org/property/annualRidership>': [(1.0, "(['dbo:BusCompany'], '<http://dbpedia.org/ontology/numberOfLines>')")], '<http://dbpedia.org/ontology/numberOfLines>': [(1.0, "(['dbo:BusCompany'], '<http://dbpedia.org/ontology/numberOfLines>')")]}
     #now, for each table in the data lake
@@ -135,6 +133,7 @@ def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3):
     for intup in lake_joins:
         for otup in lake_joins[intup]:
             o_cpl = sem_classify(otup[0], is_test=has_gt)
+            print("table class/prop pairs: {}, {}".format(otup[0], o_cpl))
             entlst = []
             for cname in o_cpl:
                 o_labels = o_cpl[cname]
@@ -150,7 +149,7 @@ def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3):
                 injk = intup[1]
                 outjk = otup[1]
                 
-                kgsc, kgrels = kgscore(indf, outdf, injk, outjk, i_cpl, o_cpl)
+                kgsc, kgrels = kgscore(indf, outdf, injk, outjk, i_cpl, o_cpl, intup[0], otup[0])
                 #sequential insertion
                 topk_kg = insert_el(topk_kg, kgsc, otup, topk)
             else:
@@ -164,12 +163,17 @@ def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3):
     
     with open('fullresults_nonkg.txt', 'w+') as fh:
         print(topk_nonkg, file=fh)
+
+#def display_results():
+    
     
     
 
 if __name__ == "__main__":
     #test classification using models on properties we already have
-    print(sem_classify('busridertbl.csv', is_test=True))
+    # print(sem_classify('busridertbl.csv', is_test=True))
+    #try running full method
+    run_full('demo_lake/busridertbl.csv', 'demo_lake', 'all_lake_joins.json', has_gt=True)
     
     
 

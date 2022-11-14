@@ -105,44 +105,67 @@ def get_fcnames(hashes, mhdctname):
         fclst.append(fcname)
     
     return fclst
-        
-    
-#given a filename and a lsh index, return a list of all the joinable tables
-#to the input file
-def query_lsh(infname, mhdctname, lsh_ind, outname):
+
+def construct_gt(infname, outname):
     all_joins = {}
-    intbl = basic_extract(infname)
-    with open(mhdctname, 'r') as fh:
-        st = fh.read()
-        mhdct = literal_eval(st)
-    
-    with open(lsh_ind, 'rb') as fh:
-        lsh = pickle.load(fh)
-    
-    incols, innames = colsets_of(intbl, infname)
-    
-    #now, query the index
-    for i,inc in enumerate(incols):
-        cmhent = gen_mh_from(inc, innames[i], infname)
-        cmh_name = list(cmhent.keys())[0]
-        cmh = cmhent[cmh_name]
-        hashes = lsh.query(cmh)
-        #now, we need to reconstruct the file-column names for these minhashes
-        fc_lst = get_fcnames(hashes, mhdct)
-        all_joins[cmh_name] = fc_lst
+    inheader = pd.read_csv(infname, nrows=0).columns.to_list()
+    for f in os.listdir('demo_lake'):
+        fullf = os.path.join('demo_lake', f)
+        if fullf.endswith('.csv') and fullf != infname:
+            outheader = pd.read_csv(fullf, nrows=0).columns.to_list()
+            for c in outheader:
+                if c in inheader and 'Unnamed' not in c:
+                    if (infname, c) in all_joins:
+                        all_joins[(infname, c)].append((fullf, c))
+                    else:
+                        all_joins[(infname, c)] = [(fullf, c)]
     
     with open(outname, 'w+') as fh:
         print(all_joins, file=fh)
+                    
+            
+            
+            
+    
+#given a filename and a lsh index, return a list of all the joinable tables
+#to the input file
+def query_lsh(infname, mhdctname, lsh_ind, outname, is_gt=True):
+    if is_gt:
+        construct_gt(infname, outname)
+    else:
+        all_joins = {}
+        intbl = basic_extract(infname)
+        with open(mhdctname, 'r') as fh:
+            st = fh.read()
+            mhdct = literal_eval(st)
+        
+        with open(lsh_ind, 'rb') as fh:
+            lsh = pickle.load(fh)
+        
+        incols, innames = colsets_of(intbl, infname)
+        
+        #now, query the index
+        for i,inc in enumerate(incols):
+            cmhent = gen_mh_from(inc, innames[i], infname)
+            cmh_name = list(cmhent.keys())[0]
+            cmh = cmhent[cmh_name]
+            hashes = lsh.query(cmh)
+            #now, we need to reconstruct the file-column names for these minhashes
+            fc_lst = get_fcnames(hashes, mhdct)
+            all_joins[cmh_name] = fc_lst
+        
+        with open(outname, 'w+') as fh:
+            print(all_joins, file=fh)
         
 
 if __name__ == "__main__":
     #do a simple test, to start
-    flst = [os.path.join('data', f) for f in os.listdir('data')]
-    inpfile = 'data/Player.csv'
+    flst = [os.path.join('demo_lake', f) for f in os.listdir('demo_lake')]
+    inpfile = 'demo_lake/busridertbl.csv'
     
     store_mhs(flst, 'lake_mhs')
-    build_lsh('lake_mhs', 'lake_lshind.pkl', thresh=0.1)
+    build_lsh('lake_mhs', 'lake_lshind.pkl', thresh=0.4)
     
-    query_lsh(inpfile, 'mh_dict.json', 'lake_lshind.pkl', 'all_lake_joins.json')
+    query_lsh(inpfile, 'mh_dict.json', 'lake_lshind.pkl', 'all_lake_joins.json', is_gt=True)
     
 
