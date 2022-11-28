@@ -67,8 +67,19 @@ def disambiguate_row(row, cpt):
             else:
                 q1_filter = 'FILTER ( '
                 flt_use = True
+            #we cannot just compare the raw values here, because
+            #we may have converted them before, specifically from integers
+            #to percentages.
+            if 'percent' in p[1]:
+                row_num = row[p[0]] * 100
+                q1_diff = ' ( xsd:float( ?val' + str(i) + ') - ' + str(row[p[0]]) + ')'
+                q1p_diff = ' ( xsd:float( ?val' + str(i) + ') - ' + str(row_num) + ')'
+                q1_filter += q1_diff + '*' + q1_diff + ' < 0.00005 || '
+                #TODO: come back and fix this filter! We can't run any code without it!
+                #q1_filter += 
+                    
             q1_diff = ' ( xsd:float( ?val' + str(i) + ') - ' + str(row[p[0]]) + ')'
-            q1_filter += q1_diff + '*' + q1_diff + ' < 0.05 '
+            q1_filter += q1_diff + '*' + q1_diff + ' < 0.00005 '
         
         if flt_use:
             q1 += q1_filter + ') '
@@ -262,8 +273,8 @@ def kgscore(df1, df2, jk1, jk2, cp1 : dict, cp2 : dict, df1name, df2name):
     #and check if there's a path between KG instances
     for j,r in enumerate(joindf.to_dict(orient='records')):
         #first, just do 10 records
-        #if j > 10:
-        #    break
+        if j > 10:
+            break
         kg_insts = get_kginsts(r, cpart1, cpart2)
         #find the new relationships among these found instances
         kg_rels = find_rels(kg_insts, j, df1name, df2name)
