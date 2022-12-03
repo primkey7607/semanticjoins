@@ -10,7 +10,7 @@ import copy
 from kgmethod import kgscore
 from nonkgmethod import nonkgscore
 import seaborn as sns
-from IPython.display import display_html
+from IPython.display import display_html, display
 from itertools import chain,cycle
 
 """
@@ -115,7 +115,7 @@ def insert_el(lst : list, el, elname, topk):
     res = lst + [(elname[0], elname[1], el)]
     return sorted(res, key=lambda x: x[2], reverse=True)[:topk]
 
-def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3):
+def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3, test_nkg=False):
     topk_kg = []
     topk_nonkg = []
     #first, find all joinable tables to the input table
@@ -145,7 +145,7 @@ def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3):
     
             entlst += in_entlst
             avg_ent = sum(entlst) / len(entlst)
-            if avg_ent < ent_thresh:
+            if avg_ent < ent_thresh and not test_nkg:
                 #then, get the kgscore
                 indf = pd.read_csv(infile)
                 outdf = pd.read_csv(otup[0])
@@ -218,6 +218,11 @@ def display_df(df, col2highlight, styles):
   .set_table_styles(styles))
 
 def display_kg(df, ent_col, jk_col, styles):
+    if ent_col == jk_col:
+        return (df.style
+       .set_properties(**{'background-color' : 'yellow'}, subset=[jk_col])
+       .set_table_styles(styles))
+    
     return (df.style
    .set_properties(**{'background-color' : 'green'}, subset=[ent_col])
    .set_properties(**{'background-color' : 'yellow'}, subset=[jk_col])
@@ -226,6 +231,17 @@ def display_kg(df, ent_col, jk_col, styles):
   #.set_caption('The ground truth is in green, and the join key is yellow.')
   #.format({'dbo:regionServed': "{:.2%}"})
   .set_table_styles(styles))
+
+def display_nonkg(outdf, proxy_df, jk_col, styles):
+    out_obj = (outdf.style
+   .set_properties(**{'background-color' : 'yellow'}, subset=[jk_col])
+   .set_table_styles(styles))
+    
+    proxy_obj = (proxy_df.style
+   .set_properties(**{'background-color' : 'yellow'}, subset=[jk_col])
+   .set_table_styles(styles))
+    
+    return [proxy_obj, out_obj]
 
 def display_results():
     with open('fullresults_kg.txt', 'r') as fh:
@@ -272,7 +288,10 @@ def display_results():
         #And if you don't see this in data lakes, and you only see the numeric features,
         #then the question is--are we saying we'll find joins that don't exist?
         #if so, that's a whole new problem! Anyway, let's not think too much about that for now.
-        display_kg(outdf, ent_col, jk_col, styles)
+        display(display_kg(outdf, ent_col, jk_col, styles))
+    
+    # for r in nonkg_res:
+        
     
     
 
@@ -280,7 +299,7 @@ if __name__ == "__main__":
     #test classification using models on properties we already have
     # print(sem_classify('busridertbl.csv', is_test=True))
     #try running full method
-    run_full('demo_lake/busridertbl.csv', 'demo_lake', 'all_lake_joins.json', has_gt=True)
+    run_full('demo_lake/busridertbl.csv', 'demo_lake', 'all_lake_joins.json', has_gt=True, test_nkg=True)
     
     
 

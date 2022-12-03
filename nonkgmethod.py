@@ -28,6 +28,12 @@ def gen_lakefts(lake_dir, fts_name):
         fc2fts[fname] = {}
         newdf = pd.read_csv(fname)
         for c in newdf.columns:
+            #TODO: eventually,
+            #we should be able to remove the next line.
+            #this is a hack--all columns in the data lake should be purely numeric
+            #with the right preprocessing
+            if newdf.dtypes[c] == 'object':
+                continue
             ctp = check_type(newdf[c].to_list())
             cfts = get_fts_by_tp(newdf[c].to_list(), ctp)
             fc2fts[fname][c] = cfts
@@ -172,6 +178,8 @@ def find_bestcard(tbl, fks, outfname):
     for fk in fks:
         jk1 = fk[0] #the output table's FK
         jk2 = fk[1] #the proxy table's FK
+        df1.set_index(jk2, inplace=True)
+        df2.set_index(jk1, inplace=True)
         joindf = df1.merge(df2, left_on=jk2, right_on=jk1)
         joincard = joindf.shape[0] / card_bound
         if joincard > max_card:
@@ -189,6 +197,7 @@ def nonkgscore(infname, outfname, jk1, jk2, lake_dir, lsh_ind, fts_name):
     #find the joinable table with the most matching numeric distributions
     #to the input
     proxy_table, proxy_fks = find_proxy(df1, out_joins, lake_dir, fts_name)
+    print("Found Proxy: {}, {}".format(proxy_table, proxy_fks))
     best_fks, cardinality = find_bestcard(proxy_table, proxy_fks, outfname)
     print("Best Foreign Keys: {}".format(best_fks))
     
