@@ -63,16 +63,24 @@ def get_fts_by_tp(col_lst : list, tp : str):
     raise Exception("Features not implemented for Type: {}".format(tp))
 
 def check_seq(col_lst):
+    print("in check_seq")
     colset = set(col_lst)
     mn = min(col_lst)
     mx = max(col_lst)
-    fullset = set(range(mn, mx + 1))
-    sqrt = math.sqrt(len(fullset))
-    if len(fullset.intersection(colset)) >= sqrt:
+    print("min and max: {}, {}".format(mn, mx))
+    #below is the principle, but we obviously don't implement it this way.
+    # fullset = set(range(mn, mx + 1))
+    # sqrt = math.sqrt(len(fullset))
+    # if len(fullset.intersection(colset)) >= sqrt:
+    #     return True
+    int_len = len([c for c in colset if c <= mx and c >= mn])
+    sqrt = math.sqrt(mx - mn + 1)
+    if int_len >= sqrt:
         return True
     return False
 
 def check_cat(col_lst):
+    print("in check_cat")
     clen = len(col_lst)
     slen = len(set(col_lst))
     
@@ -81,6 +89,7 @@ def check_cat(col_lst):
     return False
 
 def check_cnt(col_lst):
+    print("in check_cnt")
     perc95 = np.quantile(col_lst, 0.95)
     quarts = np.quantile(col_lst, [0.25, 0.5, 0.75])
     
@@ -97,6 +106,7 @@ def is_float(col_lst):
 
 def check_type(col_lst):
     if not is_float(col_lst):
+        print("is_float is False!")
         int_cols = [int(c) for c in col_lst]
         if check_seq(int_cols):
             return 'sequential'
@@ -106,5 +116,5 @@ def check_type(col_lst):
             return 'count'
         else:
             return 'other'
-    
+    print("is_float is True!")
     return 'other'

@@ -21,25 +21,59 @@ to the input.
 score.
 """
 
-def gen_lakefts(lake_dir, fts_name):
+def combine_chunks(fts_name):
+    full_dct = {}
+    
+    for f in os.listdir():
+        if f.startswith(fts_name + '_chunk') and f.endswith('.json'):
+            with open(f, 'r') as fh:
+                st = fh.read()
+                dct = literal_eval(st)
+            
+            for k in dct:
+                full_dct[k] = dct[k]
+    
+    with open(fts_name + '.json', 'w+') as fh:
+        print(full_dct, file=fh)
+            
+
+def gen_lakefts(lake_dir, fts_name, chunk_sz=1):
     fc2fts = {}
+    cur_chsz = 0
+    cur_chunk = 0
     for f in os.listdir(lake_dir):
+        print("Building Features for: {}".format(f))
+        cur_chsz += 1
         fname = os.path.join(lake_dir, f)
         fc2fts[fname] = {}
         newdf = pd.read_csv(fname)
+        print("dataframe shape: {}".format(newdf.shape))
         for c in newdf.columns:
-            #TODO: eventually,
-            #we should be able to remove the next line.
-            #this is a hack--all columns in the data lake should be purely numeric
-            #with the right preprocessing
+            print("Now Trying Column: {}".format(c))
             if newdf.dtypes[c] == 'object':
                 continue
             ctp = check_type(newdf[c].to_list())
             cfts = get_fts_by_tp(newdf[c].to_list(), ctp)
             fc2fts[fname][c] = cfts
+        
+        if cur_chsz >= chunk_sz:
+            with open(fts_name + '_chunk' + str(cur_chunk) + '.json', 'w+') as fh:
+                print(fc2fts, file=fh)
+            
+            cur_chsz = 0
+            cur_chunk += 1
+            fc2fts = {}
     
-    with open(fts_name, 'w+') as fh:
-        print(fc2fts, file=fh)
+    #write the leftovers
+    if fc2fts != {}:
+        with open(fts_name + '_chunk' + str(cur_chunk) + '.json', 'w+') as fh:
+            print(fc2fts, file=fh)
+    
+    #now, combine all the results
+    combine_chunks(fts_name)
+    
+    # with open(fts_name + '.json', 'w+') as fh:
+    #     print(fc2fts, file=fh)
 
 def parse_fckey(st):
     #this, we can reverse engineer.
@@ -104,15 +138,18 @@ def find_joinable(outname, ind_name, lake_dir, is_gt=True):
     return prox_dct
 
 def find_proxy(indf, out_joins, lake_dir, fts_name, thresh=0.05):
-    if not os.path.exists(fts_name):
+    print("In Proxy Table")
+    if not os.path.exists(fts_name + '.json'):
         gen_lakefts(lake_dir, fts_name)
     
-    with open(fts_name, 'r') as fh:
+    with open(fts_name + '.json', 'r') as fh:
         st = fh.read()
         fc2fts = literal_eval(st)
     
     indf_fts = {}
     for c in indf.columns:
+        if indf.dtypes[c] == 'object':
+            continue
         ctp = check_type(indf[c].to_list())
         cfts = get_fts_by_tp(indf[c].to_list(), ctp)
         indf_fts[c] = cfts
@@ -120,6 +157,11 @@ def find_proxy(indf, out_joins, lake_dir, fts_name, thresh=0.05):
     f_sims = {}
     relevant_fset = set()
     for intup in out_joins:
+        infname = intup[0]
+        if lake_dir in infname:
+            #if the input table is in the data lake, there's probably a good reason.
+            #so, let's just add this as well. We can remove this later.
+            relevant_fset.add(infname)
         for tup in out_joins[intup]:
             fname = tup[0]
             fk = tup[1]
@@ -128,12 +170,14 @@ def find_proxy(indf, out_joins, lake_dir, fts_name, thresh=0.05):
     relevant_fs = list(relevant_fset)
     
     for fname in relevant_fs:
+        print("Checking table: {}".format(fname))
         for cname in fc2fts[fname]:
+            print("Checking column: {}".format(cname))
             out_fts = fc2fts[fname][cname]
             outtp = list(out_fts.keys())[0]
             for inc in indf_fts:
                 incfts = indf_fts[inc]
-                intp = list(incfts.keys())
+                intp = list(incfts.keys())[0]
                 if intp == outtp:
                     invec = np.array(incfts[intp])
                     outvec = np.array(out_fts[outtp])
@@ -156,15 +200,22 @@ def find_proxy(indf, out_joins, lake_dir, fts_name, thresh=0.05):
             max_fname = fname
             break
     fks = []
+    print("Got max file")
     
     #now, get the input fks, and the fks for the most similar table
     for tup in out_joins:
+        print("Trying next tup")
         infname = tup[0]
         incname = tup[1]
         for otup in out_joins[tup]:
             if otup[0] == max_fname:
                 cname = otup[1]
                 fks.append((incname, cname))
+        
+        #this will never be true if we use tables outside the lake
+        if infname == max_fname and fks == []:
+            fks.append((incname, incname))
+            
     
     return max_fname, fks
 
@@ -201,7 +252,7 @@ def nonkgscore(infname, outfname, jk1, jk2, lake_dir, lsh_ind, fts_name):
     best_fks, cardinality = find_bestcard(proxy_table, proxy_fks, outfname)
     print("Best Foreign Keys: {}".format(best_fks))
     
-    return cardinality
+    return (proxy_table, proxy_fks), cardinality
     
     
     

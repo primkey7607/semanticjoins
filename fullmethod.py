@@ -108,10 +108,13 @@ def get_entropy(score_lst : list):
     
     return total
 
-def insert_el(lst : list, el, elname, topk):
+def insert_el(lst : list, el, elname, topk, proxies=None):
     #the easiest, and worst way to do this is to
     #just insert the element, sort the list again,
     #take the top k, and return.
+    if proxies != None:
+        res = lst + [(elname[0], elname[1], proxies[0], proxies[1], el)]
+        return sorted(res, key=lambda x: x[2], reverse=True)[:topk]
     res = lst + [(elname[0], elname[1], el)]
     return sorted(res, key=lambda x: x[2], reverse=True)[:topk]
 
@@ -158,14 +161,16 @@ def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3, te
             else:
                 injk = intup[1]
                 outjk = otup[1]
-                nonkgsc = nonkgscore(infile, otup[0], injk, outjk, lake_dir, lsh_ind, 'all_lake_fts.json')
-                topk_nonkg = insert_el(topk_nonkg, nonkgsc, otup, topk)
+                proxy_info, nonkgsc = nonkgscore(infile, otup[0], injk, outjk, lake_dir, lsh_ind, 'all_lake_fts')
+                topk_nonkg = insert_el(topk_nonkg, nonkgsc, otup, topk, proxies=proxy_info)
     
-    with open('fullresults_kg.txt', 'w+') as fh:
-        print(topk_kg, file=fh)
+    if topk_kg != []:
+        with open('fullresults_kg.txt', 'w+') as fh:
+            print({ infile : topk_kg}, file=fh)
     
-    with open('fullresults_nonkg.txt', 'w+') as fh:
-        print(topk_nonkg, file=fh)
+    if topk_nonkg != []:
+        with open('fullresults_nonkg.txt', 'w+') as fh:
+            print({ infile : topk_nonkg}, file=fh)
 
 # def display_results(inp_tbl):
 #     cm = sns.light_palette("green", as_cmap=True)
@@ -198,6 +203,15 @@ def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3, te
 #   #.format({'dbo:regionServed': "{:.2%}"})
 #   .set_table_styles(styles))
 
+"""
+Display Intuition: for every table we have in top-k: if non-KG, then display the input table,
+that table, and proxy table side-by-side, with the join key highlighted between the tables.
+Else if KG, then display the input table with the KG entities highlighted and the join key highlighted
+with a different color. We can make this happen just by putting the dataframes side-by-side,
+but the final thing we would need is the ability to "title" these pairs with
+a relationship score, and score name, if KG.
+"""
+
 def display_side_by_side(*args,titles=cycle([''])):
     html_str=''
     for df,title in zip(args, chain(titles,cycle(['</br>'])) ):
@@ -217,33 +231,76 @@ def display_df(df, col2highlight, styles):
   #.format({'dbo:regionServed': "{:.2%}"})
   .set_table_styles(styles))
 
-def display_kg(df, ent_col, jk_col, styles):
-    if ent_col == jk_col:
-        return (df.style
-       .set_properties(**{'background-color' : 'yellow'}, subset=[jk_col])
-       .set_table_styles(styles))
+#specifically intended for our column names,
+#and our string column values. 
+def prettify_st(st : str):
+    if st.startswith('dbo:'):
+        new_st = st[4:]
+        return new_st
+    elif 'http' in st:
+        new_st = st.split('/')[-1]
+        return new_st
+        
+
+# display the input table with highlighted input column and entity columns
+# alongside the output table
+# and add a title to the whole affair with a relationship strength. 
+# (we don't know how to do this yet)
+def display_kg(indf, in_ent, in_jk, df, ent_col, jk_col, styles, title, rel_score):
+    space = "\xa0" * 10
+    indf_styler = (indf.style
+                   .set_table_attributes("style='display:inline'")
+                   .set_properties(**{'background-color' : 'yellow'}, subset=[in_jk])
+                   .set_properties(**{'background-color' : 'green'}, subset=[in_ent])
+                   .set_caption('KG Table: ' + title)
+                   .set_table_styles(styles))
     
-    return (df.style
-   .set_properties(**{'background-color' : 'green'}, subset=[ent_col])
-   .set_properties(**{'background-color' : 'yellow'}, subset=[jk_col])
+    
+    
+    if ent_col == jk_col:
+        outdf_styler = (df.style
+                        .set_table_attributes("style='display:inline'")
+                        .set_properties(**{'background-color' : 'yellow'}, subset=[jk_col])
+                        .set_caption('KG Table: ' + title + '\nRelationship Strength: ' + str(rel_score))
+                        .set_table_styles(styles))
+    
+    else:
+        outdf_styler = (df.style
+                       .set_table_attributes("style='display:inline'")
+                       .set_properties(**{'background-color' : 'green'}, subset=[ent_col])
+                       .set_properties(**{'background-color' : 'yellow'}, subset=[jk_col])
   #.background_gradient(cmap=cm, subset=['dbo:BusCompany','dbo:regionServed'])
   #.highlight_max(subset=['dbo:BusCompany','dbo:regionServed'])
   #.set_caption('The ground truth is in green, and the join key is yellow.')
   #.format({'dbo:regionServed': "{:.2%}"})
-  .set_table_styles(styles))
+                      .set_table_styles(styles))
+    
+    #now, put them side by side.
+    space = "\xa0" * 10
+    final_display_obj = indf_styler._repr_html_()+ space  + outdf_styler._repr_html_()
+    
+    return final_display_obj
 
-def display_nonkg(outdf, proxy_df, jk_col, styles):
+
+def display_nonkg(outdf, proxy_df, jk_col, proxy_col, styles, title, proxy_title):
     out_obj = (outdf.style
    .set_properties(**{'background-color' : 'yellow'}, subset=[jk_col])
+   .set_caption('Non-KG Join Table: ' + title)
    .set_table_styles(styles))
     
     proxy_obj = (proxy_df.style
-   .set_properties(**{'background-color' : 'yellow'}, subset=[jk_col])
+   .set_properties(**{'background-color' : 'yellow'}, subset=[proxy_col])
+   .set_caption('Non-KG Proxy Table: ' + proxy_title)
    .set_table_styles(styles))
     
     return [proxy_obj, out_obj]
+    
+    
 
-def display_results():
+def display_results(infile):
+    #12/6 TODO: add the input table here as well.
+    #the results are now dictionaries instead of lists,
+    #where key = input file name, and value = list of KG/non-KG tuples of tables, columns, and scores.
     with open('fullresults_kg.txt', 'r') as fh:
         st = fh.read()
         kg_res = literal_eval(st)
@@ -288,9 +345,16 @@ def display_results():
         #And if you don't see this in data lakes, and you only see the numeric features,
         #then the question is--are we saying we'll find joins that don't exist?
         #if so, that's a whole new problem! Anyway, let's not think too much about that for now.
-        display(display_kg(outdf, ent_col, jk_col, styles))
+        display_html(display_kg(outdf, ent_col, jk_col, styles, r[0]))
     
-    # for r in nonkg_res:
+    for r in nonkg_res:
+        outdf = pd.read_csv(r[0])
+        jk_col = r[1]
+        proxy_df = pd.read_csv(r[2])
+        proxy_fk = r[3][0][1]
+        tbl_displays = display_nonkg(outdf, proxy_df, jk_col, proxy_fk, styles, r[0], r[2])
+        for t_disp in tbl_displays:
+            display(t_disp)
         
     
     
@@ -299,7 +363,41 @@ if __name__ == "__main__":
     #test classification using models on properties we already have
     # print(sem_classify('busridertbl.csv', is_test=True))
     #try running full method
-    run_full('demo_lake/busridertbl.csv', 'demo_lake', 'all_lake_joins.json', has_gt=True, test_nkg=True)
+    #run_full('demo_lake/busridertbl.csv', 'demo_lake', 'all_lake_joins.json', has_gt=True, test_nkg=True)
+    #let's test displays
+    indf = pd.read_csv('demo_lake/busridertbl.csv')
+    in_jk = 'dbo:regionServed'
+    in_ent = 'dbo:BusCompany'
+    outdf = pd.read_csv('demo_lake/busriderjoin.csv')
+    out_jk = 'dbo:regionServed'
+    out_ent = 'dbo:regionServed'
+    rel_score = 0.04950495049504951
+    title = 'demo_lake/busriderjoin.csv'
+    
+    # Set colormap equal to seaborns light green color palette
+    cm = sns.light_palette("green", as_cmap=True)
+    
+    # Set CSS properties for th elements in dataframe
+    th_props = [
+      ('font-size', '11px'),
+      ('text-align', 'center'),
+      ('font-weight', 'bold'),
+      ('color', '#6d6d6d'),
+      ('background-color', '#f7f7f9')
+      ]
+    
+    # Set CSS properties for td elements in dataframe
+    td_props = [
+      ('font-size', '11px')
+      ]
+    
+    # Set table styles
+    styles = [
+      dict(selector="th", props=th_props),
+      dict(selector="td", props=td_props)
+      ]
+    
+    display_kg(indf, in_ent, in_jk, outdf, out_ent, out_jk, styles, title, rel_score)
     
     
 
