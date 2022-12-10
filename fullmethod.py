@@ -12,6 +12,7 @@ from nonkgmethod import nonkgscore
 import seaborn as sns
 from IPython.display import display_html, display
 from itertools import chain,cycle
+import time
 
 """
 Purpose: Given an input dataset and a data lake, run the full pipeline.
@@ -108,15 +109,15 @@ def get_entropy(score_lst : list):
     
     return total
 
-def insert_el(lst : list, el, elname, topk, proxies=None):
+def insert_el(lst : list, el, elname, infile, injk, topk, proxies=None):
     #the easiest, and worst way to do this is to
     #just insert the element, sort the list again,
     #take the top k, and return.
     if proxies != None:
-        res = lst + [(elname[0], elname[1], proxies[0], proxies[1], el)]
-        return sorted(res, key=lambda x: x[2], reverse=True)[:topk]
-    res = lst + [(elname[0], elname[1], el)]
-    return sorted(res, key=lambda x: x[2], reverse=True)[:topk]
+        res = lst + [(elname[0], elname[1], infile, injk, proxies[0], proxies[1], el)]
+        return sorted(res, key=lambda x: x[6], reverse=True)[:topk]
+    res = lst + [(elname[0], elname[1], infile, injk, el)]
+    return sorted(res, key=lambda x: x[4], reverse=True)[:topk]
 
 def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3, test_nkg=False):
     topk_kg = []
@@ -157,12 +158,12 @@ def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3, te
                 
                 kgsc, kgrels = kgscore(indf, outdf, injk, outjk, i_cpl, o_cpl, intup[0], otup[0])
                 #sequential insertion
-                topk_kg = insert_el(topk_kg, kgsc, otup, topk)
+                topk_kg = insert_el(topk_kg, kgsc, otup, infile, injk, topk, kg_rels=kgrels)
             else:
                 injk = intup[1]
                 outjk = otup[1]
                 proxy_info, nonkgsc = nonkgscore(infile, otup[0], injk, outjk, lake_dir, lsh_ind, 'all_lake_fts')
-                topk_nonkg = insert_el(topk_nonkg, nonkgsc, otup, topk, proxies=proxy_info)
+                topk_nonkg = insert_el(topk_nonkg, nonkgsc, otup, infile, injk, topk, proxies=proxy_info)
     
     if topk_kg != []:
         with open('fullresults_kg.txt', 'w+') as fh:
@@ -239,75 +240,252 @@ def prettify_st(st : str):
         return new_st
     elif 'http' in st:
         new_st = st.split('/')[-1]
+        if '>' in new_st:
+            new_st = new_st.replace('>', '')
         return new_st
+    else:
+        #leave it alone
+        return st
         
 
 # display the input table with highlighted input column and entity columns
 # alongside the output table
 # and add a title to the whole affair with a relationship strength. 
 # (we don't know how to do this yet)
-def display_kg(indf, in_ent, in_jk, df, ent_col, jk_col, styles, title, rel_score):
-    space = "\xa0" * 10
-    indf_styler = (indf.style
-                   .set_table_attributes("style='display:inline'")
-                   .set_properties(**{'background-color' : 'yellow'}, subset=[in_jk])
-                   .set_properties(**{'background-color' : 'green'}, subset=[in_ent])
-                   .set_caption('KG Table: ' + title)
-                   .set_table_styles(styles))
+def display_kg(indf, in_ent, in_jk, df, ent_col, jk_col, styles, title, in_title, rel_score):
+    if 'Unnamed: 0.1' in indf.columns:
+        indf = indf.drop(columns=['Unnamed: 0.1'])
+    if 'Unnamed: 0.1' in df.columns:
+        df = df.drop(columns=['Unnamed: 0.1'])
+    
+    indf[in_jk + '_id'] = indf[in_jk].astype('category').cat.rename_categories(range(1, indf[in_jk].nunique()+1))
+    df[jk_col + '_id'] = df[jk_col].astype('category').cat.rename_categories(range(1, df[jk_col].nunique()+1))
+    
+    pretty_incol_lst = [{incol : prettify_st(incol)} for incol in indf.columns]
+    pretty_incols = {}
+    for e in pretty_incol_lst:
+        for k in e:
+            pretty_incols[k] = e[k]
+    
+    pretty_outcol_lst = [{outcol : prettify_st(outcol)} for outcol in df.columns]
+    pretty_outcols = {}
+    for e in pretty_outcol_lst:
+        for k in e:
+            pretty_outcols[k] = e[k]
+    
+    pretty_indf = indf.rename(columns=pretty_incols)
+    pretty_df = df.rename(columns=pretty_outcols)
+    # print(pretty_indf.columns)
+    # print(pretty_df.columns)
+    # print(pretty_indf.index.is_unique)
+    # print(pretty_df.index.is_unique)
+    
+    inobj_cols = pretty_indf.select_dtypes(include='object').head()
+    oobj_cols = pretty_df.select_dtypes(include='object').head()
+    
+    infl_cols = pretty_indf.select_dtypes(include='float').head()
+    ofl_cols = pretty_df.select_dtypes(include='float').head()
+    
+    
+    for c in inobj_cols:
+        pretty_indf[c] = pretty_indf[c].apply(lambda x: prettify_st(x))
+    
+    for c in oobj_cols:
+        pretty_df[c] = pretty_df[c].apply(lambda x: prettify_st(x))
+    
+    infl_dct = {}
+    ofl_dct = {}
+    for c in infl_cols:
+        infl_dct[c] = '{:.2f}'
+    
+    for c in ofl_cols:
+        ofl_dct[c] = '{:.2f}'
     
     
     
-    if ent_col == jk_col:
-        outdf_styler = (df.style
-                        .set_table_attributes("style='display:inline'")
-                        .set_properties(**{'background-color' : 'yellow'}, subset=[jk_col])
-                        .set_caption('KG Table: ' + title + '\nRelationship Strength: ' + str(rel_score))
-                        .set_table_styles(styles))
+    pd.set_option('display.max_colwidth', 10)
+    #space = "\xa0" * 10
+    space = ""
+    indf_styler = (pretty_indf.style
+                   .set_table_attributes("style='display:inline; margin-right:20px;'")
+                   .set_properties(**{'background-color' : 'yellow'}, subset=[pretty_incols[in_jk + '_id']])
+                   .set_properties(**{'background-color' : 'green'}, subset=[pretty_incols[in_ent]])
+                   .set_caption('Input Table: ' + in_title)
+                   #.set_table_styles(styles)
+                   .format(infl_dct))
     
-    else:
-        outdf_styler = (df.style
-                       .set_table_attributes("style='display:inline'")
-                       .set_properties(**{'background-color' : 'green'}, subset=[ent_col])
-                       .set_properties(**{'background-color' : 'yellow'}, subset=[jk_col])
-  #.background_gradient(cmap=cm, subset=['dbo:BusCompany','dbo:regionServed'])
-  #.highlight_max(subset=['dbo:BusCompany','dbo:regionServed'])
-  #.set_caption('The ground truth is in green, and the join key is yellow.')
-  #.format({'dbo:regionServed': "{:.2%}"})
-                      .set_table_styles(styles))
     
-    #now, put them side by side.
-    space = "\xa0" * 10
-    final_display_obj = indf_styler._repr_html_()+ space  + outdf_styler._repr_html_()
     
+    
+    outdf_styler = (pretty_df.style
+                    .set_table_attributes("style='display:inline'")
+                    .set_properties(**{'background-color' : 'yellow'}, subset=[pretty_outcols[jk_col + '_id']])
+                    .set_properties(**{'background-color' : 'green'}, subset=[pretty_outcols[jk_col]])
+                    .set_caption('KG Join Table: ' + title + '\nRelationship Strength: ' + str(rel_score))
+                    #.set_table_styles(styles)
+                    .format(ofl_dct))
+    
+    final_display_obj = indf_styler._repr_html_() + outdf_styler._repr_html_()
+    final_display_obj = final_display_obj.replace('table','table style="display:inline"')
     return final_display_obj
 
 
-def display_nonkg(outdf, proxy_df, jk_col, proxy_col, styles, title, proxy_title):
-    out_obj = (outdf.style
-   .set_properties(**{'background-color' : 'yellow'}, subset=[jk_col])
-   .set_caption('Non-KG Join Table: ' + title)
-   .set_table_styles(styles))
+def display_nonkg(indf, in_jk, outdf, proxy_df, jk_col, proxy_col, styles, title, proxy_title, in_title, rel_score):
+    if 'Unnamed: 0.1' in indf.columns:
+        indf = indf.drop(columns=['Unnamed: 0.1'])
+    if 'Unnamed: 0.1' in outdf.columns:
+        outdf = outdf.drop(columns=['Unnamed: 0.1'])
+    if 'Unnamed: 0.1' in proxy_df.columns:
+        proxy_df = proxy_df.drop(columns=['Unnamed: 0.1'])
     
-    proxy_obj = (proxy_df.style
-   .set_properties(**{'background-color' : 'yellow'}, subset=[proxy_col])
-   .set_caption('Non-KG Proxy Table: ' + proxy_title)
-   .set_table_styles(styles))
+    if prettify_st(in_jk) == in_jk:
+        in_jk_id = in_jk
+    else:
+        in_jk_id = in_jk + '_id'
     
-    return [proxy_obj, out_obj]
+    if prettify_st(jk_col) == jk_col:
+        jk_col_id = jk_col
+    else:
+        jk_col_id = jk_col + '_id'
+    
+    if prettify_st(proxy_col) == proxy_col:
+        p_col_id = proxy_col
+    else:
+        p_col_id = proxy_col + '_id'
+    
+    if in_jk_id != in_jk:
+        indf[in_jk + '_id'] = indf[in_jk].astype('category').cat.rename_categories(range(1, indf[in_jk].nunique()+1))
+    
+    if jk_col_id != jk_col:
+        outdf[jk_col + '_id'] = outdf[jk_col].astype('category').cat.rename_categories(range(1, outdf[jk_col].nunique()+1))
+    
+    if p_col_id != proxy_col:
+        proxy_df[proxy_col + '_id'] = proxy_df[proxy_col].astype('category').cat.rename_categories(range(1, proxy_df[proxy_col].nunique()+1))
+    
+    pretty_incol_lst = [{incol : prettify_st(incol)} for incol in indf.columns]
+    pretty_incols = {}
+    for e in pretty_incol_lst:
+        for k in e:
+            pretty_incols[k] = e[k]
+    
+    pretty_outcol_lst = [{outcol : prettify_st(outcol)} for outcol in outdf.columns]
+    pretty_outcols = {}
+    for e in pretty_outcol_lst:
+        for k in e:
+            pretty_outcols[k] = e[k]
+    
+    pretty_proxcol_lst = [{proxcol : prettify_st(proxcol)} for proxcol in proxy_df.columns]
+    pretty_proxcols = {}
+    for e in pretty_proxcol_lst:
+        for k in e:
+            pretty_proxcols[k] = e[k]
+    
+    pretty_indf = indf.rename(columns=pretty_incols)
+    pretty_df = outdf.rename(columns=pretty_outcols)
+    pretty_prox = proxy_df.rename(columns=pretty_proxcols)
+    # print(pretty_indf.columns)
+    # print(pretty_df.columns)
+    # print(pretty_indf.index.is_unique)
+    # print(pretty_df.index.is_unique)
+    
+    inobj_cols = pretty_indf.select_dtypes(include='object').head()
+    oobj_cols = pretty_df.select_dtypes(include='object').head()
+    pobj_cols = pretty_prox.select_dtypes(include='object').head()
+    
+    infl_cols = pretty_indf.select_dtypes(include='float').head()
+    ofl_cols = pretty_df.select_dtypes(include='float').head()
+    pfl_cols = pretty_prox.select_dtypes(include='float').head()
     
     
+    for c in inobj_cols:
+        pretty_indf[c] = pretty_indf[c].apply(lambda x: prettify_st(x))
+    
+    for c in oobj_cols:
+        pretty_df[c] = pretty_df[c].apply(lambda x: prettify_st(x))
+    
+    for c in pobj_cols:
+        pretty_prox[c] = pretty_prox[c].apply(lambda x: prettify_st(x))
+    
+    infl_dct = {}
+    ofl_dct = {}
+    pfl_dct = {}
+    for c in infl_cols:
+        infl_dct[c] = '{:.2f}'
+    
+    for c in ofl_cols:
+        ofl_dct[c] = '{:.2f}'
+    
+    for c in pfl_cols:
+        pfl_dct[c] = '{:.2f}'
+    
+    
+    
+    pd.set_option('display.max_colwidth', 10)
+    #space = "\xa0" * 10
+    space = ""
+    if prettify_st(in_jk) == in_jk:
+        in_jk_id = in_jk
+    else:
+        in_jk_id = in_jk + '_id'
+    
+    indf_styler = (pretty_indf.style
+                   .set_table_attributes("style='display:inline; margin-right:20px;'")
+                   .set_properties(**{'background-color' : 'yellow'}, subset=[pretty_incols[in_jk_id]])
+                   #.set_properties(**{'background-color' : 'green'}, subset=[pretty_incols[in_ent]])
+                   .set_caption('Input Table: ' + in_title)
+                   #.set_table_styles(styles)
+                   .format(infl_dct))
+    
+    if prettify_st(jk_col) == jk_col:
+        jk_col_id = jk_col
+    else:
+        jk_col_id = jk_col + '_id'
+    
+    outdf_styler = (pretty_df.style
+                    .set_table_attributes("style='display:inline'")
+                    .set_properties(**{'background-color' : 'yellow'}, subset=[pretty_outcols[jk_col_id]])
+                    .set_caption('Non-KG Join Table: ' + title + '\nRelationship Strength: ' + str(rel_score))
+                    #.set_table_styles(styles)
+                    .format(ofl_dct))
+    
+    if prettify_st(proxy_col) == proxy_col:
+        p_col_id = proxy_col
+    else:
+        p_col_id = proxy_col + '_id'
+    
+    proxdf_styler = (pretty_prox.style
+                    .set_table_attributes("style='display:inline'")
+                    .set_properties(**{'background-color' : 'yellow'}, subset=[pretty_proxcols[p_col_id]])
+                    .set_caption('Non-KG Proxy Table: ' + proxy_title)
+                    #.set_table_styles(styles)
+                    .format(pfl_dct))
+    
+    final_display_obj = indf_styler._repr_html_() + proxdf_styler._repr_html_() + outdf_styler._repr_html_()
+    final_display_obj = final_display_obj.replace('table','table style="display:inline"')
+    return final_display_obj
+
+def compute_results():
+    time.sleep(2.4)
 
 def display_results(infile):
+    ent_lst = ['dbo:BusCompany', 'dbo:Hospital', 'dbo:Politician',
+               'dbo:SoccerPlayer', 'dbo:Bank']
     #12/6 TODO: add the input table here as well.
     #the results are now dictionaries instead of lists,
     #where key = input file name, and value = list of KG/non-KG tuples of tables, columns, and scores.
-    with open('fullresults_kg.txt', 'r') as fh:
+    with open('stockresults_kg.txt', 'r') as fh:
         st = fh.read()
         kg_res = literal_eval(st)
     
-    with open('fullresults_nonkg.txt', 'r') as fh:
+    with open('stockresults_nonkg.txt', 'r') as fh:
         st = fh.read()
         nonkg_res = literal_eval(st)
+    
+    indf = pd.read_csv(infile, nrows=5)
+    in_ent = ''
+    for c in indf.columns:
+        if c in ent_lst:
+            in_ent = c
     
     # Set colormap equal to seaborns light green color palette
     cm = sns.light_palette("green", as_cmap=True)
@@ -334,9 +512,11 @@ def display_results(infile):
     
     #first, display the knowledge graph results
     for r in kg_res:
-        outdf = pd.read_csv(r[0])
-        jk_col = r[1]
-        ent_col = r[1]
+        in_jk = r[1]
+        outdf = pd.read_csv(r[2], nrows=5)
+        jk_col = r[3]
+        ent_col = in_ent
+        
         #TODO: right now, this will color the same column both yellow and green.
         #I think the more correct way to do this is to have a separate ID
         #column for entities in both tables, and color these yellow (as the join key)
@@ -345,16 +525,18 @@ def display_results(infile):
         #And if you don't see this in data lakes, and you only see the numeric features,
         #then the question is--are we saying we'll find joins that don't exist?
         #if so, that's a whole new problem! Anyway, let's not think too much about that for now.
-        display_html(display_kg(outdf, ent_col, jk_col, styles, r[0]))
+        #tbl_displays = display_kg(outdf, ent_col, jk_col, styles, r[0])
+        tbl_displays = display_kg(indf, in_ent, in_jk, outdf, ent_col, jk_col, styles, r[2], infile, r[-1])
+        display_html(tbl_displays, raw=True)
     
     for r in nonkg_res:
-        outdf = pd.read_csv(r[0])
+        outdf = pd.read_csv(r[0], nrows=5)
         jk_col = r[1]
-        proxy_df = pd.read_csv(r[2])
+        proxy_df = pd.read_csv(r[2], nrows=5)
         proxy_fk = r[3][0][1]
-        tbl_displays = display_nonkg(outdf, proxy_df, jk_col, proxy_fk, styles, r[0], r[2])
-        for t_disp in tbl_displays:
-            display(t_disp)
+        in_jk = r[3][0][0]
+        tbl_displays = display_nonkg(indf, in_jk, outdf, proxy_df, jk_col, proxy_fk, styles, r[0], r[2], infile, r[-1])
+        display_html(tbl_displays, raw=True)
         
     
     
@@ -363,41 +545,42 @@ if __name__ == "__main__":
     #test classification using models on properties we already have
     # print(sem_classify('busridertbl.csv', is_test=True))
     #try running full method
-    #run_full('demo_lake/busridertbl.csv', 'demo_lake', 'all_lake_joins.json', has_gt=True, test_nkg=True)
+    # run_full('demo_lake/busridertbl.csv', 'demo_lake', 'all_lake_joins.json', has_gt=True, test_nkg=True)
     #let's test displays
-    indf = pd.read_csv('demo_lake/busridertbl.csv')
-    in_jk = 'dbo:regionServed'
-    in_ent = 'dbo:BusCompany'
-    outdf = pd.read_csv('demo_lake/busriderjoin.csv')
-    out_jk = 'dbo:regionServed'
-    out_ent = 'dbo:regionServed'
-    rel_score = 0.04950495049504951
-    title = 'demo_lake/busriderjoin.csv'
+    # indf = pd.read_csv('demo_lake/busridertbl.csv')
+    # in_jk = 'dbo:regionServed'
+    # in_ent = 'dbo:BusCompany'
+    # outdf = pd.read_csv('demo_lake/busriderjoin.csv')
+    # out_jk = 'dbo:regionServed'
+    # out_ent = 'dbo:regionServed'
+    # rel_score = 0.04950495049504951
+    # title = 'demo_lake/busriderjoin.csv'
     
-    # Set colormap equal to seaborns light green color palette
-    cm = sns.light_palette("green", as_cmap=True)
+    # # Set colormap equal to seaborns light green color palette
+    # cm = sns.light_palette("green", as_cmap=True)
     
-    # Set CSS properties for th elements in dataframe
-    th_props = [
-      ('font-size', '11px'),
-      ('text-align', 'center'),
-      ('font-weight', 'bold'),
-      ('color', '#6d6d6d'),
-      ('background-color', '#f7f7f9')
-      ]
+    # # Set CSS properties for th elements in dataframe
+    # th_props = [
+    #   ('font-size', '11px'),
+    #   ('text-align', 'center'),
+    #   ('font-weight', 'bold'),
+    #   ('color', '#6d6d6d'),
+    #   ('background-color', '#f7f7f9')
+    #   ]
     
-    # Set CSS properties for td elements in dataframe
-    td_props = [
-      ('font-size', '11px')
-      ]
+    # # Set CSS properties for td elements in dataframe
+    # td_props = [
+    #   ('font-size', '11px')
+    #   ]
     
-    # Set table styles
-    styles = [
-      dict(selector="th", props=th_props),
-      dict(selector="td", props=td_props)
-      ]
+    # # Set table styles
+    # styles = [
+    #   dict(selector="th", props=th_props),
+    #   dict(selector="td", props=td_props)
+    #   ]
     
-    display_kg(indf, in_ent, in_jk, outdf, out_ent, out_jk, styles, title, rel_score)
+    # display_kg(indf, in_ent, in_jk, outdf, out_ent, out_jk, styles, title, rel_score)
+    pass
     
     
 
