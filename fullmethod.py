@@ -464,8 +464,10 @@ def display_nonkg(indf, in_jk, outdf, proxy_df, jk_col, proxy_col, styles, title
     final_display_obj = final_display_obj.replace('table','table style="display:inline"')
     return final_display_obj
 
-def compute_results():
-    time.sleep(2.4)
+def display_usecases():
+    pd.set_option('display.max_colwidth', None)
+    df = pd.read_csv('all_usecases.csv')
+    return df
 
 def display_results(infile):
     ent_lst = ['dbo:BusCompany', 'dbo:Hospital', 'dbo:Politician',
@@ -473,13 +475,33 @@ def display_results(infile):
     #12/6 TODO: add the input table here as well.
     #the results are now dictionaries instead of lists,
     #where key = input file name, and value = list of KG/non-KG tuples of tables, columns, and scores.
-    with open('stockresults_kg.txt', 'r') as fh:
-        st = fh.read()
-        kg_res = literal_eval(st)
+    #TODO: store all the results in one file. For now, we'll just use a condition
     
-    with open('stockresults_nonkg.txt', 'r') as fh:
-        st = fh.read()
-        nonkg_res = literal_eval(st)
+    if infile == 'demo_lake/busridertbl.csv':
+        with open('fullresults_kg.txt', 'r') as fh:
+            st = fh.read()
+            kg_res = literal_eval(st)
+        
+        # with open('fullresults_nonkg.txt', 'r') as fh:
+        #     st = fh.read()
+        #     nonkg_res = literal_eval(st)
+        nonkg_res = []
+    elif infile == 'demo_lake/ETF prices.csv':
+        with open('stockresults_kg.txt', 'r') as fh:
+            st = fh.read()
+            kg_res = literal_eval(st)
+        
+        with open('stockresults_nonkg.txt', 'r') as fh:
+            st = fh.read()
+            nonkg_res = literal_eval(st)
+    elif infile == 'demo_lake/soccertbl.csv':
+        with open('soccerresults_kg.txt', 'r') as fh:
+            st = fh.read()
+            kg_res = literal_eval(st)
+        
+        with open('soccerresults_nonkg.txt', 'r') as fh:
+            st = fh.read()
+            nonkg_res = literal_eval(st)
     
     indf = pd.read_csv(infile, nrows=5)
     in_ent = ''
