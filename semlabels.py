@@ -89,9 +89,10 @@ def nums_query(cp):
 #query for KG class/property pair values
 #based on the conditional distributions we expect to appear
 #in the data lake (as opposed to the full distributions)
-#TODO: as future work, we'll want to make this more general.
-#but right now, we will just use the same values we sample to generate
-#KG joins in our data lake.
+#we use the full set of values acquired from the knowledge graph.
+#the only difference is that we acquired each tuple of values from
+#single entities. This is how we know we've acquired a joint distribution
+#of these values.
 def cond_adj(cp):
     classes = cp[0]
     prop = cp[1]
@@ -107,16 +108,6 @@ def cond_adj(cp):
             out_dist += full_dist
     
     return out_dist
-                
-            
-            
-            
-            
-                
-            
-        
-    
-        
 
 #given a list of numeric knowledge graph class-property pairs,
 #where the class is a list of dbpedia class names,
@@ -419,42 +410,46 @@ if __name__ == "__main__":
                        'dbo:percentageOfAreaWater'] }
     bus_joinpairs = [([], s) for s in bus_joinprops['dbo:regionServed']]
     # print("bus join pairs: {}".format(bus_joinpairs))
-    construct_numfts(bus_pairs + bus_joinpairs, cond_adjust=True)
-    create_fcm()
+    
     
     
     #joins_from_kg(bus_pairs, bus_joinprops, bus_joins, 'busridertbl.csv', 'busriderjoin.csv')
     
     
-    # soccer_pairs = [(['dbo:SoccerPlayer'], '<http://dbpedia.org/property/totalgoals>'), 
-    #               (['dbo:SoccerPlayer'], '<http://dbpedia.org/property/totalcaps>')]
-    # soccer_joins = [(['dbo:SoccerPlayer'], 'dbp:birthPlace')]
-    # soccer_joinprops = {'dbp:birthPlace' : ['<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>',
-    #                    'dbp:hdi'] }
-    
+    soccer_pairs = [(['dbo:SoccerPlayer'], '<http://dbpedia.org/property/totalgoals>'), 
+                  (['dbo:SoccerPlayer'], '<http://dbpedia.org/property/totalcaps>')]
+    soccer_joins = [(['dbo:SoccerPlayer'], 'dbp:birthPlace')]
+    soccer_joinprops = {'dbp:birthPlace' : ['<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>',
+                        'dbp:hdi'] }
+    soccer_joinpairs = [([], s) for s in soccer_joinprops['dbp:birthPlace']]
     # joins_from_kg(soccer_pairs, soccer_joinprops, soccer_joins, 'soccertbl.csv', 'soccerjoin.csv')
     
-    # hosp_pairs = [(['dbo:Hospital'], '<http://dbpedia.org/ontology/bedCount>')]
-    # hosp_joins = [(['dbo:Hospital'], '<http://dbpedia.org/property/areaServed>')]
-    # hosp_joinprops = {'<http://dbpedia.org/property/areaServed>' : ['<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>',
-    #                    'dbp:yearPrecipitationDays'] }
-    
+    hosp_pairs = [(['dbo:Hospital'], '<http://dbpedia.org/ontology/bedCount>')]
+    hosp_joins = [(['dbo:Hospital'], '<http://dbpedia.org/property/areaServed>')]
+    hosp_joinprops = {'<http://dbpedia.org/property/areaServed>' : ['<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>',
+                        'dbp:yearPrecipitationDays'] }
+    hosp_joinpairs = [([], s) for s in hosp_joinprops['<http://dbpedia.org/property/areaServed>']]
     # joins_from_kg(hosp_pairs, hosp_joinprops, hosp_joins, 'hospitaltbl.csv', 'hospitaljoin.csv')
     
     
-    # bank_pairs = [(['dbo:Bank'], '<http://dbpedia.org/property/revenue>')]
-    # bank_joins = [(['dbo:Bank'], 'dbo:location')]
-    # bank_joinprops = {'dbo:location' : ['<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>'] }
+    bank_pairs = [(['dbo:Bank'], '<http://dbpedia.org/property/revenue>')]
+    bank_joins = [(['dbo:Bank'], 'dbo:location')]
+    bank_joinprops = {'dbo:location' : ['<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>'] }
+    bank_joinpairs = [([], s) for s in bank_joinprops['dbo:location']]
     # joins_from_kg(bank_pairs, bank_joinprops, bank_joins, 'banktbl.csv', 'bankjoin.csv')
     
-    # pol_pairs = [(['dbo:Politician'], '<http://dbpedia.org/property/votes>')]
-    # pol_joins = [(['dbo:Politician'], 'dbo:education')]
-    # pol_joinprops = {'dbo:education' : ['dbo:endowment'] }
+    pol_pairs = [(['dbo:Politician'], '<http://dbpedia.org/property/votes>')]
+    pol_joins = [(['dbo:Politician'], 'dbo:education')]
+    pol_joinprops = {'dbo:education' : ['dbo:endowment'] }
+    pol_joinpairs = [([], s) for s in pol_joinprops['dbo:education']]
     # joins_from_kg(pol_pairs, pol_joinprops, pol_joins, 'politiciantbl.csv', 'politicianjoin.csv')
     
     
     #construct_numfts(init_pairs)
     #create_fcm()
+    all_pairs = bus_pairs + bus_joinpairs + hosp_pairs + hosp_joinpairs + bank_pairs + bank_joinpairs + pol_pairs + pol_joinpairs
+    construct_numfts(all_pairs, cond_adjust=True)
+    create_fcm()
     
     
     

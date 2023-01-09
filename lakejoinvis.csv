@@ -1,0 +1,49 @@
+Output Table,Output Table Join Key,Input Table Join Key
+demo_lake_politicianjoin.csv_Unnamed: 0.1,demo_lake_politicianjoin.csv_Unnamed: 0.1,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_bank_cleantbl.csv_Unnamed: 0,demo_lake_bank_cleantbl.csv_Unnamed: 0,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_politiciantbl.csv_dbo:education,demo_lake_politiciantbl.csv_dbo:education,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_soccerjoin.csv_dbp:hdi,demo_lake_soccerjoin.csv_dbp:hdi,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_politicianjoin.csv_dbo:endowment,demo_lake_politicianjoin.csv_dbo:endowment,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_politiciantbl.csv_dbo:Politician,demo_lake_politiciantbl.csv_dbo:Politician,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_bank_cleanjoin.csv_<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>,demo_lake_bank_cleanjoin.csv_<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_soccerjoin.csv_Unnamed: 0.1,demo_lake_soccerjoin.csv_Unnamed: 0.1,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_politiciantbl.csv_<http://dbpedia.org/property/votes>,demo_lake_politiciantbl.csv_<http://dbpedia.org/property/votes>,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_politiciantbl.csv_Unnamed: 0,demo_lake_politiciantbl.csv_Unnamed: 0,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_soccerjoin.csv_<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>,demo_lake_soccerjoin.csv_<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_bank_cleanjoin.csv_Unnamed: 0.1,demo_lake_bank_cleanjoin.csv_Unnamed: 0.1,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_bank_cleantbl.csv_<http://dbpedia.org/property/revenue>,demo_lake_bank_cleantbl.csv_<http://dbpedia.org/property/revenue>,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_bank_cleantbl.csv_Unnamed: 0.1.1,demo_lake_bank_cleantbl.csv_Unnamed: 0.1.1,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_bank_cleantbl.csv_dbo:Bank,demo_lake_bank_cleantbl.csv_dbo:Bank,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_politicianjoin.csv_Unnamed: 0,demo_lake_politicianjoin.csv_Unnamed: 0,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_bank_cleantbl.csv_dbo:location,demo_lake_bank_cleantbl.csv_dbo:location,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_politiciantbl.csv_Unnamed: 0.1,demo_lake_politiciantbl.csv_Unnamed: 0.1,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_bank_cleanjoin.csv_dbo:location,demo_lake_bank_cleanjoin.csv_dbo:location,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_soccerjoin.csv_dbp:birthPlace,demo_lake_soccerjoin.csv_dbp:birthPlace,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_bank_cleanjoin.csv_Unnamed: 0,demo_lake_bank_cleanjoin.csv_Unnamed: 0,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_politicianjoin.csv_dbo:education,demo_lake_politicianjoin.csv_dbo:education,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_soccerjoin.csv_Unnamed: 0,demo_lake_soccerjoin.csv_Unnamed: 0,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_bank_cleantbl.csv_Unnamed: 0.1,demo_lake_bank_cleantbl.csv_Unnamed: 0.1,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0
+demo_lake_politicianjoin.csv_Unnamed: 0.1,demo_lake_politicianjoin.csv_Unnamed: 0.1,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_bank_cleantbl.csv_Unnamed: 0,demo_lake_bank_cleantbl.csv_Unnamed: 0,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_politiciantbl.csv_dbo:education,demo_lake_politiciantbl.csv_dbo:education,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_soccerjoin.csv_dbp:hdi,demo_lake_soccerjoin.csv_dbp:hdi,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_politicianjoin.csv_dbo:endowment,demo_lake_politicianjoin.csv_dbo:endowment,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_politiciantbl.csv_dbo:Politician,demo_lake_politiciantbl.csv_dbo:Politician,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_bank_cleanjoin.csv_<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>,demo_lake_bank_cleanjoin.csv_<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_soccerjoin.csv_Unnamed: 0.1,demo_lake_soccerjoin.csv_Unnamed: 0.1,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_politiciantbl.csv_<http://dbpedia.org/property/votes>,demo_lake_politiciantbl.csv_<http://dbpedia.org/property/votes>,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_politiciantbl.csv_Unnamed: 0,demo_lake_politiciantbl.csv_Unnamed: 0,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_soccerjoin.csv_<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>,demo_lake_soccerjoin.csv_<http://dbpedia.org/ontology/PopulatedPlace/populationDensity>,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_bank_cleanjoin.csv_Unnamed: 0.1,demo_lake_bank_cleanjoin.csv_Unnamed: 0.1,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_bank_cleantbl.csv_<http://dbpedia.org/property/revenue>,demo_lake_bank_cleantbl.csv_<http://dbpedia.org/property/revenue>,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_bank_cleantbl.csv_Unnamed: 0.1.1,demo_lake_bank_cleantbl.csv_Unnamed: 0.1.1,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_bank_cleantbl.csv_dbo:Bank,demo_lake_bank_cleantbl.csv_dbo:Bank,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_politicianjoin.csv_Unnamed: 0,demo_lake_politicianjoin.csv_Unnamed: 0,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_bank_cleantbl.csv_dbo:location,demo_lake_bank_cleantbl.csv_dbo:location,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_politiciantbl.csv_Unnamed: 0.1,demo_lake_politiciantbl.csv_Unnamed: 0.1,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_bank_cleanjoin.csv_dbo:location,demo_lake_bank_cleanjoin.csv_dbo:location,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_soccerjoin.csv_dbp:birthPlace,demo_lake_soccerjoin.csv_dbp:birthPlace,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_bank_cleanjoin.csv_Unnamed: 0,demo_lake_bank_cleanjoin.csv_Unnamed: 0,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_politicianjoin.csv_dbo:education,demo_lake_politicianjoin.csv_dbo:education,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_soccerjoin.csv_Unnamed: 0,demo_lake_soccerjoin.csv_Unnamed: 0,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1
+demo_lake_bank_cleantbl.csv_Unnamed: 0.1,demo_lake_bank_cleantbl.csv_Unnamed: 0.1,demo_lake/busridertbl.csv_demo_lake_busridertbl.csv_Unnamed: 0.1

@@ -122,11 +122,7 @@ def construct_gt(infname, outname):
     
     with open(outname, 'w+') as fh:
         print(all_joins, file=fh)
-                    
-            
-            
-            
-    
+
 #given a filename and a lsh index, return a list of all the joinable tables
 #to the input file
 def query_lsh(infname, mhdctname, lsh_ind, outname, is_gt=True):
@@ -150,8 +146,12 @@ def query_lsh(infname, mhdctname, lsh_ind, outname, is_gt=True):
             cmh_name = list(cmhent.keys())[0]
             cmh = cmhent[cmh_name]
             hashes = lsh.query(cmh)
+            if hashes == []:
+                print("hashes is null: {}".format(inc))
             #now, we need to reconstruct the file-column names for these minhashes
             fc_lst = get_fcnames(hashes, mhdct)
+            if fc_lst == []:
+                print("fc_lst is null: {}, {}".format(inc, hashes))
             all_joins[cmh_name] = fc_lst
         
         with open(outname, 'w+') as fh:
@@ -166,6 +166,6 @@ if __name__ == "__main__":
     store_mhs(flst, 'lake_mhs')
     build_lsh('lake_mhs', 'lake_lshind.pkl', thresh=0.4)
     
-    query_lsh(inpfile, 'mh_dict.json', 'lake_lshind.pkl', 'all_lake_joins.json', is_gt=True)
+    query_lsh(inpfile, 'mh_dict.json', 'lake_lshind.pkl', 'all_lake_joins.json', is_gt=False)
     
 
