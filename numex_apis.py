@@ -187,8 +187,8 @@ def disambiguate_onerow(fname : str, oname : str, row : dict):
         else:
             cpart2[c_cl] = [(cn, ctup[1])]
     
-    print("cpart1: {}".format(cpart1))
-    print("cpart2: {}".format(cpart2))
+    #print("cpart1: {}".format(cpart1))
+    #print("cpart2: {}".format(cpart2))
         
     
     inst_dct = disambiguate_row(row, cpart1)
@@ -207,9 +207,25 @@ def disambiguate_onerow(fname : str, oname : str, row : dict):
     
     
 
-#show how we find relationships after we've disambiguated the entities for two rows.
+#show how we find relationships after we've disambiguated the entities for the cells corresponding to each table
+#in a two-way inner equijoin.
 def find_relationships(entity1, entity2):
-    raise Exception("Not implemented")
+    #TODO: generalize this later,
+    #but for the purpose of the use-case we show, 
+    #assume we're showing how we find the relationship between the
+    #busrider table, and the bus rider join table, 0th row of the join.
+    f1name = 'demo_lake/busridertbl.csv'
+    f2name = 'demo_lake/busriderjoin.csv'
+    row_num = 0
+    # with open('demo_lake/busridertbl_rowinsts.txt', 'r') as fh:
+    #     st = fh.read()
+    #     tup = literal_eval(st)
+    
+    # inst_dct = tup[0]
+    # inst_dct2 = tup[1]
+    
+    all_rels = find_rels((entity1, entity2), row_num, f1name, f2name)
+    return all_rels
 
 #show how we find the KG score between a pair of tables.
 def find_kgscore(infile, outfile):
