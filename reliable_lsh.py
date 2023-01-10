@@ -83,7 +83,11 @@ if __name__ == "__main__":
     # busridermatches = query_lsh('demo_lake/busridertbl.csv', lake_lsh)
     # with open('buslshresults.json', 'w+') as fh:
     #     print(busridermatches, file=fh)
-    busridermatches = test_lsh('demo_lake/busridertbl.csv', 'demo_lake')
-    with open('buslshresults.json', 'w+') as fh:
-        print(busridermatches, file=fh)
+    # busridermatches = test_lsh('demo_lake/busridertbl.csv', 'demo_lake')
+    # with open('buslshresults.json', 'w+') as fh:
+    #     print(busridermatches, file=fh)
+    
+    etfmatches = test_lsh('demo_lake/ETF prices.csv', 'demo_lake')
+    with open('etflshresults.json', 'w+') as fh:
+        print(etfmatches, file=fh)
         

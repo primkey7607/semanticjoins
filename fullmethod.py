@@ -83,6 +83,8 @@ def sem_classify(fname, is_test=False):
             else:
                 new_fts = ft_lst
         else:
+            if coltp == 'count':
+                coltp = 'counts'
             new_fts = list(numfts[coltp])
         ft_arr = np.array([new_fts])
         print(ft_arr)
@@ -123,7 +125,9 @@ def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3, te
     topk_kg = []
     topk_nonkg = []
     #first, find all joinable tables to the input table
-    lake_joins = find_joinable(infile, lsh_ind, lake_dir)
+    with open('all_lakes_joined_parsed.json', 'r') as fh:
+        st = fh.read()
+        lake_joins = literal_eval(st)
     #first, get the classification for the infile
     i_cpl = sem_classify(infile, is_test=has_gt)
     print("table class/prop pairs: {}, {}".format(infile, i_cpl))
@@ -159,18 +163,18 @@ def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3, te
                 kgsc, kgrels = kgscore(indf, outdf, injk, outjk, i_cpl, o_cpl, intup[0], otup[0])
                 #sequential insertion
                 topk_kg = insert_el(topk_kg, kgsc, otup, infile, injk, topk, kg_rels=kgrels)
-            else:
-                injk = intup[1]
-                outjk = otup[1]
-                proxy_info, nonkgsc = nonkgscore(infile, otup[0], injk, outjk, lake_dir, lsh_ind, 'all_lake_fts')
-                topk_nonkg = insert_el(topk_nonkg, nonkgsc, otup, infile, injk, topk, proxies=proxy_info)
+            # else:
+            #     injk = intup[1]
+            #     outjk = otup[1]
+            #     proxy_info, nonkgsc = nonkgscore(infile, otup[0], injk, outjk, lake_dir, lsh_ind, 'all_lake_fts')
+            #     topk_nonkg = insert_el(topk_nonkg, nonkgsc, otup, infile, injk, topk, proxies=proxy_info)
     
     if topk_kg != []:
-        with open('fullresults_kg.txt', 'w+') as fh:
+        with open(infile[:-4] + '_fullresults_kg.txt', 'w+') as fh:
             print({ infile : topk_kg}, file=fh)
     
     if topk_nonkg != []:
-        with open('fullresults_nonkg.txt', 'w+') as fh:
+        with open(infile[:-4] + '_fullresults_nonkg.txt', 'w+') as fh:
             print({ infile : topk_nonkg}, file=fh)
 
 # def display_results(inp_tbl):
@@ -567,7 +571,8 @@ if __name__ == "__main__":
     #test classification using models on properties we already have
     # print(sem_classify('busridertbl.csv', is_test=True))
     #try running full method
-    # run_full('demo_lake/busridertbl.csv', 'demo_lake', 'all_lake_joins.json', has_gt=True, test_nkg=True)
+    results = run_full('demo_lake/busridertbl.csv', 'demo_lake', 'all_lake_joins.json', has_gt=True, test_nkg=True)
+    print(results)
     #let's test displays
     # indf = pd.read_csv('demo_lake/busridertbl.csv')
     # in_jk = 'dbo:regionServed'
@@ -602,7 +607,6 @@ if __name__ == "__main__":
     #   ]
     
     # display_kg(indf, in_ent, in_jk, outdf, out_ent, out_jk, styles, title, rel_score)
-    pass
     
     
 

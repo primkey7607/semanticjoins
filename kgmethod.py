@@ -86,12 +86,12 @@ def disambiguate_row(row, cpt):
         #TODO: we put a limit for efficiency, but this could easily make it so the
         #answer we want doesn't appear here, so we may have to get rid of the limit
         q1 += ' }'
-        print("Querying Endpoint q1")
+        # print("Querying Endpoint q1")
         sparql = SPARQLWrapper("https://dbpedia.org/sparql/", agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11")
         sparql.setQuery(q1)
         sparql.setReturnFormat(JSON)
         results = sparql.query().convert()
-        print("disambiguate results: {}, {}".format(q1, results))
+        # print("disambiguate results: {}, {}".format(q1, results))
         q1subs = []
         for b in results['results']['bindings']:
             q1subs.append(b['subject']['value'])
@@ -104,20 +104,20 @@ def disambiguate_row(row, cpt):
 #given a dictionary of row values and dictionaries of properties corresponding
 #to the same class, disambiguate to the KG and return candidate instances
 def get_kginsts(row, cpt1 : dict, cpt2 : dict):
-    print("cpt1: {}".format(cpt1))
-    print("cpt2: {}".format(cpt2))
+    # print("cpt1: {}".format(cpt1))
+    # print("cpt2: {}".format(cpt2))
     #guess instances from row values
     cl1_insts = disambiguate_row(row, cpt1)
-    print("cl1_insts: {}".format(cl1_insts))
+    # print("cl1_insts: {}".format(cl1_insts))
     cl2_insts = disambiguate_row(row, cpt2)
-    print("cl2_insts: {}".format(cl2_insts))
+    # print("cl2_insts: {}".format(cl2_insts))
     
     return cl1_insts, cl2_insts
 
 def find_rels(kg_insts, j, df1name, df2name):
     #for each pair of instances here, find relationships
     #such that there are no garbage relationships
-    print("kg_insts: {}".format(kg_insts))
+    # print("kg_insts: {}".format(kg_insts))
     cl1_insts = kg_insts[0]
     cl2_insts = kg_insts[1]
     all_rels = set()
@@ -155,10 +155,10 @@ def find_rels(kg_insts, j, df1name, df2name):
                         grel_st = ', '.join(g_rels)
                         query = 'select ?rel where { <' + inst1 + '> ?rel <' + inst2 + '> '
                         query += ' FILTER ( ?rel NOT IN ( ' + grel_st + ' ) ) }'
-                        print("Query: {}".format(query))
+                        # print("Query: {}".format(query))
                         opquery = 'select ?rel where { <' + inst2 + '> ?rel <' + inst1 + '> '
                         opquery += ' FILTER ( ?rel NOT IN ( ' + grel_st + ' ) ) }'
-                        print("OPQuery: {}".format(opquery))
+                        # print("OPQuery: {}".format(opquery))
                         sparql = SPARQLWrapper("https://dbpedia.org/sparql/", agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11")
                         sparql.setQuery(query)
                         sparql.setReturnFormat(JSON)
@@ -228,8 +228,10 @@ def verify_rels(all_rels, kg_insts, existing_rels):
 #and the second is the class/property pair,
 #return the proportion of tuples in the join that we find are related through the KG.
 def kgscore(df1, df2, jk1, jk2, cp1 : dict, cp2 : dict, df1name, df2name):
-    print("cp1: {}".format(cp1))
-    print("cp2: {}".format(cp2))
+    # print("cp1: {}".format(cp1))
+    # print("cp2: {}".format(cp2))
+    # print("jk1: {}".format(jk1))
+    # print("jk2: {}".format(jk2))
     joindf = df1.merge(df2, left_on=jk1, right_on=jk2)
     found_rels = {}
     #first, find the groups of class/property pairs with the same class,
@@ -269,16 +271,20 @@ def kgscore(df1, df2, jk1, jk2, cp1 : dict, cp2 : dict, df1name, df2name):
             cpart2[c_cl] = [(cn, ctup[1])]
     
     all_rels = {}
+    #TODO: There's a significant scalability challenge in making this method work.
+    #but that isn't our focus: our focus is presenting a new feature. We can speed it up next.
+    #so for interactivity, sample the records on which we run our method.
+    limit = 10
     #now, for each row in the join result, disambiguate the values to instances
     #and check if there's a path between KG instances
     for j,r in enumerate(joindf.to_dict(orient='records')):
         #first, just do 10 records
-        if j > 10:
+        if j > limit:
             break
         kg_insts = get_kginsts(r, cpart1, cpart2)
         #find the new relationships among these found instances
         kg_rels = find_rels(kg_insts, j, df1name, df2name)
-        print("kg_rels: {}".format(kg_rels))
+        #print("kg_rels: {}".format(kg_rels))
         existing_rels = []
         for rel in kg_rels:
             if rel in all_rels:
@@ -295,7 +301,12 @@ def kgscore(df1, df2, jk1, jk2, cp1 : dict, cp2 : dict, df1name, df2name):
             all_rels[v] += 1
     
     #now, the score is the maximum proportion of rows that any one relationship covers
-    max_score = max([all_rels[ar] for ar in all_rels]) / joindf.shape[0]
+    #max_score = max([all_rels[ar] for ar in all_rels]) / joindf.shape[0]
+    max_relfreq = max([all_rels[ar] for ar in all_rels])
+    #print("Max_Relfreq: {}".format(max_relfreq))
+    #print("Limit: {}".format(limit))
+    max_score = max_relfreq / (limit + 1)
+    #print("Max Score: {}".format(max_score))
     return max_score, all_rels
     
         

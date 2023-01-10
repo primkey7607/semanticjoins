@@ -156,6 +156,7 @@ def find_proxy(indf, out_joins, lake_dir, fts_name, thresh=0.05):
     
     f_sims = {}
     relevant_fset = set()
+    print("Out_joins: {}".format(out_joins))
     for intup in out_joins:
         infname = intup[0]
         if lake_dir in infname:
@@ -168,6 +169,7 @@ def find_proxy(indf, out_joins, lake_dir, fts_name, thresh=0.05):
             relevant_fset.add(fname)
     
     relevant_fs = list(relevant_fset)
+    print("Relevant_fs: {}".format(relevant_fs))
     
     for fname in relevant_fs:
         print("Checking table: {}".format(fname))
