@@ -193,7 +193,7 @@ def find_proxy(indf, out_joins, lake_dir, fts_name, thresh=0.05):
                             f_sims[fname] = 1
         
     
-    max_sim = max([f_sims[fname] for f in f_sims])
+    max_sim = max([f_sims[f] for f in f_sims])
     max_fname = None
     
     #pick the first file name with the highest similarity

@@ -1,7 +1,8 @@
 from fullmethod import display_results, sem_classify, find_joinable, get_entropy
 from kgmethod import kgscore, disambiguate_row, get_kginsts, find_rels
-from nonkgmethod import nonkgscore
+from nonkgmethod import nonkgscore, find_proxy
 import pandas as pd
+import numpy as np
 from ast import literal_eval
 import os
 
@@ -43,24 +44,43 @@ def parse_lakejoins(lakejoins : dict):
         
 
 def show_lshjoins(infile):
-    if os.path.exists('lakejoinvis.csv'):
-        df = pd.read_csv('lakejoinvis.csv')
-        return df
     vis_cols = ['Output Table', 'Output Table Join Key', 'Input Table Join Key']
-    if os.path.exists('all_lakes_joined_parsed.json'):
-        with open('all_lakes_joined_parsed.json', 'r') as fh:
-            st = fh.read()
-            dct = literal_eval(st)
-    else:
-        with open('buslshresults.json', 'r') as fh:
-            st = fh.read()
-            dct = literal_eval(st)
-            dct = parse_lakejoins(dct)
+    if 'bus' in infile:
+        if os.path.exists('lakejoinvis.csv'):
+            df = pd.read_csv('lakejoinvis.csv')
+            return df
+        if os.path.exists('all_lakes_joined_parsed.json'):
+            with open('all_lakes_joined_parsed.json', 'r') as fh:
+                st = fh.read()
+                dct = literal_eval(st)
+        else:
+            with open('buslshresults.json', 'r') as fh:
+                st = fh.read()
+                dct = literal_eval(st)
+                dct = parse_lakejoins(dct)
+            
+            with open('all_lakes_joined_parsed.json', 'w+') as fh:
+                print(dct, file=fh)
+    elif 'index' in infile:
+        if os.path.exists('indexjoinvis.csv'):
+            df = pd.read_csv('indexjoinvis.csv')
+            return df
+        if os.path.exists('index_parsedjoins.json'):
+            with open('index_parsedjoins.json', 'r') as fh:
+                st = fh.read()
+                dct = literal_eval(st)
+        else:
+            with open('indexlshresults.json', 'r') as fh:
+                st = fh.read()
+                dct = literal_eval(st)
+                dct = parse_lakejoins(dct)
+            
+            with open('index_parsedjoins.json', 'w+') as fh:
+                print(dct, file=fh)
         
-        with open('all_lakes_joined_parsed.json', 'w+') as fh:
-            print(dct, file=fh)
     
-    print(dct)
+    
+    #print(dct)
     outdct = {}
     for k in vis_cols:
         outdct[k] = []
@@ -83,7 +103,10 @@ def show_lshjoins(infile):
             
     #print(outdct)
     outdf = pd.DataFrame(outdct)
-    outdf.to_csv('lakejoinvis.csv', index=False)
+    if 'bus' in infile:
+        outdf.to_csv('lakejoinvis.csv', index=False)
+    elif 'index' in infile:
+        outdf.to_csv('indexjoinvis.csv', index=False)
     return outdf
     
 
@@ -281,7 +304,7 @@ def find_relationships(entity1, entity2):
     return all_rels
 
 #show how we find the KG score between a pair of tables.
-def find_kgscore(infile, outfile, use_existing=True):
+def find_kgstrength(infile, outfile, use_existing=True):
     if os.path.exists('kg_scoreres.txt') and use_existing:
         with open('kg_scoreres.txt', 'r') as fh:
             st = fh.read()
@@ -340,6 +363,13 @@ def find_kgscore(infile, outfile, use_existing=True):
     
     return max_kgscore, max_rels
 
+def show_kgmatch(infile, outfile):
+    display_results('demo_lake/busridertbl.csv')
+
+def show_distmatch(infile, outfile):
+    display_results('demo_lake/ETF prices.csv')
+    
+
 #show the results of running the full method on a dataset
 #that can be mapped to DBpedia.
 def show_topk_kgmatches(infile, k):
@@ -370,13 +400,93 @@ def show_topk_kgmatches(infile, k):
 
 #show how we find a proxy table
 #for an input file
-def show_proxy_table(infile):
-    raise Exception("Not implemented")
+def find_proxy_table(infile, use_existing=True):
+    vis_cols = ['Proxy Table', 'Normalized Numeric Feature Difference']
+    outdct = {}
+    if use_existing:
+        with open('bestproxy.txt', 'r') as fh:
+            st = fh.read()
+            st = st.replace('\n', '')
+            proxyfile = st
+    
+        with open('demolake_fts.json', 'r') as fh:
+            st = fh.read()
+            fts_dct = literal_eval(st)
+        
+        infts = fts_dct[infile]
+        proxyfts = fts_dct[proxyfile]
+        
+        dsts = {}
+        for inc in infts:
+            for pc in proxyfts:
+                intp = list(infts[inc].keys())[0]
+                ptp = list(proxyfts[pc].keys())[0]
+                invec = np.array(infts[inc][intp])
+                proxvec = np.array(proxyfts[pc][ptp])
+                #scale to between 0 and 1
+                innorm = invec / np.linalg.norm(invec)
+                outnorm = proxvec / np.linalg.norm(proxvec)
+                dsts[(inc, pc)] = np.linalg.norm(outnorm - innorm)
+        
+        min_colpair = min(dsts, key=dsts.get)
+        min_dst = dsts[min_colpair]
+        
+        outdct['Proxy Table'] = [proxyfile]
+        outdct['Normalized Numeric Feature Difference'] = min_dst
+        
+        outdf = pd.DataFrame(outdct)
+        
+        return outdf
+            
+            
+
+def find_diststrength(infile, outfile, use_existing=True):
+    if use_existing:
+        answer_dct = {'demo_lake/MutualFund prices - A-E.csv' : 0.00010831546535126091,
+                      'demo_lake/MutualFund prices - F-K.csv' : 0.0001074886200216589
+                      }
+        return answer_dct[outfile]
+    proxyinfo = pd.read_csv('proxy_output.csv')
+    proxyfile = proxyinfo['Proxy Table'].loc[0]
+    odf = pd.read_csv(outfile)
+    pdf = pd.read_csv(proxyfile)
+    odf.set_index(['price_date'])
+    pdf.set_index(['Date'])
+    joindf = pdf.merge(odf, left_on='Date', right_on='price_date')
+    
+    strength = joindf.shape[0] / (odf.shape[0] * pdf.shape[0])
+    
+    return strength
 
 #show the results of running the full method on a dataset
 #that can be mapped to DBpedia.
-def show_topk_nonkgmatches(infile, k):
-    raise Exception("Not implemented")
+def show_topk_distmatches(infile, k):
+    vis_cols = ['Input Table', 'Proxy Table', 'Output Table', 'Distribution-based Strength']
+    #actually running this would require lots of joins, which are prohibitively expensive
+    #so, read the answer from disk for now.
+    answer_dct = {'demo_lake/MutualFund prices - A-E.csv' : 0.00010831546535126091,
+                  'demo_lake/MutualFund prices - F-K.csv' : 0.0001074886200216589
+                  }
+    
+    proxyinfo = pd.read_csv('proxy_output.csv')
+    proxyfile = proxyinfo['Proxy Table'].loc[0]
+    
+    outdct = {}
+    for vc in vis_cols:
+        outdct[vc] = []
+    
+    outdct['Input Table'] = [infile] * 2
+    outdct['Proxy Table'] = [proxyfile] * 2
+    outdct['Output Table'] = list(answer_dct.keys())
+    outdct['Distribution-based Strength'] = list(answer_dct.values())
+    
+    outdf = pd.DataFrame(outdct)
+    
+    return outdf
+    
+    
+    
+    
     
         
         
