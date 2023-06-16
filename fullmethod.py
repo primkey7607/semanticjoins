@@ -263,6 +263,8 @@ def display_kg(indf, in_ent, in_jk, df, ent_col, jk_col, styles, title, in_title
         df = df.drop(columns=['Unnamed: 0.1'])
     
     indf[in_jk + '_id'] = indf[in_jk].astype('category').cat.rename_categories(range(1, indf[in_jk].nunique()+1))
+    if indf.dtypes[in_jk] == 'object':
+        indf = indf.drop(columns=[in_jk]) #get rid of the string version of the join key--it just distracts from our point.
     df[jk_col + '_id'] = df[jk_col].astype('category').cat.rename_categories(range(1, df[jk_col].nunique()+1))
     
     pretty_incol_lst = [{incol : prettify_st(incol)} for incol in indf.columns]
@@ -313,7 +315,7 @@ def display_kg(indf, in_ent, in_jk, df, ent_col, jk_col, styles, title, in_title
     indf_styler = (pretty_indf.style
                    .set_table_attributes("style='display:inline; margin-right:20px;'")
                    .set_properties(**{'background-color' : 'yellow'}, subset=[pretty_incols[in_jk + '_id']])
-                   .set_properties(**{'background-color' : 'green'}, subset=[pretty_incols[in_ent]])
+                   .set_properties(**{'background-color' : 'lightgreen'}, subset=[pretty_incols[in_ent]])
                    .set_caption('Input Table: ' + in_title)
                    #.set_table_styles(styles)
                    .format(infl_dct))
@@ -324,7 +326,7 @@ def display_kg(indf, in_ent, in_jk, df, ent_col, jk_col, styles, title, in_title
     outdf_styler = (pretty_df.style
                     .set_table_attributes("style='display:inline'")
                     .set_properties(**{'background-color' : 'yellow'}, subset=[pretty_outcols[jk_col + '_id']])
-                    .set_properties(**{'background-color' : 'green'}, subset=[pretty_outcols[jk_col]])
+                    .set_properties(**{'background-color' : 'lightgreen'}, subset=[pretty_outcols[jk_col]])
                     .set_caption('KG Join Table: ' + title + '\nRelationship Strength: ' + str(rel_score))
                     #.set_table_styles(styles)
                     .format(ofl_dct))
