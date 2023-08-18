@@ -172,10 +172,14 @@ def run_full(infile, lake_dir, lsh_ind, ent_thresh=0.5, has_gt=False, topk=3, te
     if topk_kg != []:
         with open(infile[:-4] + '_fullresults_kg.txt', 'w+') as fh:
             print({ infile : topk_kg}, file=fh)
+    else:
+        print("topk_kg results empty!!")
     
     if topk_nonkg != []:
         with open(infile[:-4] + '_fullresults_nonkg.txt', 'w+') as fh:
             print({ infile : topk_nonkg}, file=fh)
+    else:
+        print("topk_nonkg results empty!!")
 
 # def display_results(inp_tbl):
 #     cm = sns.light_palette("green", as_cmap=True)
